@@ -845,17 +845,17 @@ get_volume_payload() {
         if [[ "$qos" == "Manual" ]]; then
             echo '{
     "type": "Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
-    'target_location': "{{target_location}}",
+    "location": "{{target_location}}",
     "properties": {
         "volumeType": "Migration",
         "dataProtection": {
             "replication": {
                 "endpointType": "Dst",
-                'replication_schedule': "{{replication_schedule}}",
+                "replication_schedule": "{{replication_schedule}}",
                 "remotePath": {
                     "externalHostName": "{{source_hostname}}",
                     "serverName": "{{source_server_name}}",
-                    'target_volume_name': "{{source_volume_name}}"
+                    "volumeName": "{{source_volume_name}}"
                 }
             }
         },
@@ -877,17 +877,17 @@ get_volume_payload() {
         else
             echo '{
     "type": "Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
-    'target_location': "{{target_location}}",
+    "location": "{{target_location}}",
     "properties": {
         "volumeType": "Migration",
         "dataProtection": {
             "replication": {
                 "endpointType": "Dst",
-                'replication_schedule': "{{replication_schedule}}",
+                "replication_schedule": "{{replication_schedule}}",
                 "remotePath": {
                     "externalHostName": "{{source_hostname}}",
                     "serverName": "{{source_server_name}}",
-                    'target_volume_name': "{{source_volume_name}}"
+                    "volumeName": "{{source_volume_name}}"
                 }
             }
         },
@@ -911,17 +911,17 @@ get_volume_payload() {
         if [[ "$qos" == "Manual" ]]; then
             echo '{
    "type":"Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
-   'target_location':"{{target_location}}",
+   "location":"{{target_location}}",
    "properties":{
       "volumeType":"Migration",
       "dataProtection":{
          "replication":{
             "endpointType":"Dst",
-            'replication_schedule':"{{replication_schedule}}",
+            "replication_schedule":"{{replication_schedule}}",
             "remotePath":{
                "externalHostName":"{{source_hostname}}",
                "serverName":"{{source_server_name}}",
-               'target_volume_name':"{{source_volume_name}}"
+               "volumeName":"{{source_volume_name}}"
             }
          }
       },
@@ -960,17 +960,17 @@ get_volume_payload() {
         else
             echo '{
    "type":"Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
-   'target_location':"{{target_location}}",
+   "location":"{{target_location}}",
    "properties":{
       "volumeType":"Migration",
       "dataProtection":{
          "replication":{
             "endpointType":"Dst",
-            'replication_schedule':"{{replication_schedule}}",
+            "replication_schedule":"{{replication_schedule}}",
             "remotePath":{
                "externalHostName":"{{source_hostname}}",
                "serverName":"{{source_server_name}}",
-               'target_volume_name':"{{source_volume_name}}"
+               "volumeName":"{{source_volume_name}}"
             }
          }
       },

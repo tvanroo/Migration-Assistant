@@ -3,7 +3,13 @@
 ### System Requirements
 - **Python 3.6+** (recommended: Python 3.7+)
 - **curl** - For API calls (Linux/macOS) or PowerShell Invoke-WebRequest (Windows)
-- **bash** - Shell environment (Linux/macOS) or **PowerShell 5.0+** (Windows)Assistant
+- **bash** - Shell environment (Linux/macOS) or **PowerShell 5.0+** (Windows)
+
+### Line Endings
+This repository uses platform-appropriate line endings:
+- **Unix/Linux/macOS files** (`.sh`, `.py`, `.md`, `.yaml`): LF endings
+- **Windows PowerShell files** (`.ps1`): CRLF endings
+- **Cross-platform compatibility**: Files should work without `dos2unix` conversionAssistant
 
 # Azure NetApp Files Migration Assistant
 
