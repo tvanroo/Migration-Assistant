@@ -117,14 +117,22 @@ The system automatically detects:
 
 ## 📋 Migration Workflow Steps
 
-1. **Authentication** - Obtain Azure AD token
-2. **Create Target Volume** - Create destination volume (NFSv3/SMB, Auto/Manual QoS)
-3. **Cluster Peer Request** - Initiate peering with source cluster
-4. **Accept Peer Request** - Accept the peering relationship
-5. **Authorize Replication** - Authorize external replication
-6. **Re-Sync** - Perform replication transfer
-7. **Break Relationship** - Break replication relationship
-8. **Finalize** - Finalize external replication
+1. **Authentication** - Obtain Azure AD token (30 seconds)
+2. **Create Target Volume** - Create destination volume (5-10 minutes)
+3. **Cluster Peer Request** - Initiate peering with source cluster (1-2 minutes)
+4. **Accept Peer Request** - Accept the peering relationship (30 seconds)
+5. **Authorize Replication** - Authorize external replication (1 minute)
+6. **Re-Sync** - Perform replication transfer (depends on data size)
+7. **Break Relationship** - Break replication relationship (30 seconds)
+8. **Finalize** - Finalize external replication (1 minute)
+
+⏱️ **Total Time**: Typically 15-30 minutes + data transfer time
+
+### 🔍 **Monitoring Options**
+- **Interactive Mode** (`anf_interactive.sh`): Full monitoring with progress tracking
+- **Basic Mode** (`anf_runner.sh generate`): Fast execution with minimal monitoring
+- **Volume Creation**: Monitored every 30 seconds up to 20 minutes
+- **Async Operations**: Monitored every 60 seconds up to 2 hours
 
 ## 🔄 Protocol & QoS Combinations
 

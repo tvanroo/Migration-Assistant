@@ -308,7 +308,7 @@ except:
         
         if [[ "$should_monitor" == "true" ]]; then
             local volume_name=$(get_config_value 'target_volume_name')
-            check_volume_status "$volume_name" 10
+            check_volume_status "$volume_name"  # Use default 40 attempts (20 minutes)
         else
             info "Skipping volume status check. You can verify in Azure portal."
         fi
@@ -397,10 +397,11 @@ except:
 # Check volume status directly
 check_volume_status() {
     local volume_name="$1"
-    local max_attempts=${2:-10}  # Default 10 attempts
+    local max_attempts=${2:-40}  # Default 40 attempts (20 minutes total)
     local attempt=1
     
     info "Checking volume status..."
+    info "Volume creation can take up to 10 minutes. Will check every 30 seconds for up to 20 minutes."
     
     while [[ $attempt -le $max_attempts ]]; do
         echo ""
@@ -485,15 +486,15 @@ except Exception as e:
         fi
         
         if [[ $attempt -lt $max_attempts ]]; then
-            echo -e "${YELLOW}⏳ Waiting 10 seconds before next check...${NC}"
-            sleep 10
+            echo -e "${YELLOW}⏳ Waiting 30 seconds before next check...${NC}"
+            sleep 30
         fi
         
         ((attempt++))
     done
     
-    warning "Volume status check timeout. Volume may still be provisioning."
-    info "You can manually check volume status in the Azure portal."
+    warning "Volume status check timeout after 20 minutes. Volume may still be provisioning."
+    info "You can manually check volume status in the Azure portal or wait longer if needed."
     return 0
 }
 
