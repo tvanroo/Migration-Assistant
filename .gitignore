@@ -188,5 +188,8 @@ logs/
 # Runtime log files
 *.log
 
+# Authentication tokens (security)
+*.token
+
 # macOS system files
 .DS_Store

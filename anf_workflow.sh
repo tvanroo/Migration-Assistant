@@ -195,7 +195,7 @@ get_volume_payload() {
         "dataProtection": {
             "replication": {
                 "endpointType": "Dst",
-                "replication_schedule": "{{replication_schedule}}",
+                "replicationSchedule": "{{replication_schedule}}",
                 "remotePath": {
                     "externalHostName": "{{source_hostname}}",
                     "serverName": "{{source_server_name}}",
@@ -203,7 +203,7 @@ get_volume_payload() {
                 }
             }
         },
-        'target_service_level': "{{target_service_level}}",
+        "serviceLevel": "{{target_service_level}}",
         "throughputMibps": "{{target_throughput_mibps}}",
         "creationToken": "{{target_volume_name}}",
         "usageThreshold": "{{target_usage_threshold}}",
@@ -214,8 +214,8 @@ get_volume_payload() {
             "CIFS"
         ],
         "subnetId": "{{target_subnet_id}}",
-        'target_network_features': "Standard",
-        'target_is_large_volume': "{{target_is_large_volume}}"
+        "networkFeatures": "Standard",
+        "isLargeVolume": "{{target_is_large_volume}}"
     }
 }'
         else
@@ -227,7 +227,7 @@ get_volume_payload() {
         "dataProtection": {
             "replication": {
                 "endpointType": "Dst",
-                "replication_schedule": "{{replication_schedule}}",
+                "replicationSchedule": "{{replication_schedule}}",
                 "remotePath": {
                     "externalHostName": "{{source_hostname}}",
                     "serverName": "{{source_server_name}}",
@@ -235,7 +235,7 @@ get_volume_payload() {
                 }
             }
         },
-        'target_service_level': "{{target_service_level}}",
+        "serviceLevel": "{{target_service_level}}",
         "creationToken": "{{target_volume_name}}",
         "usageThreshold": "{{target_usage_threshold}}",
         "exportPolicy": {
@@ -245,8 +245,8 @@ get_volume_payload() {
             "CIFS"
         ],
         "subnetId": "{{target_subnet_id}}",
-        'target_network_features': "Standard",
-        'target_is_large_volume': "{{target_is_large_volume}}"
+        "networkFeatures": "Standard",
+        "isLargeVolume": "{{target_is_large_volume}}"
     }
 }'
         fi
@@ -261,7 +261,7 @@ get_volume_payload() {
       "dataProtection":{
          "replication":{
             "endpointType":"Dst",
-            "replication_schedule":"{{replication_schedule}}",
+            "replicationSchedule":"{{replication_schedule}}",
             "remotePath":{
                "externalHostName":"{{source_hostname}}",
                "serverName":"{{source_server_name}}",
@@ -269,7 +269,7 @@ get_volume_payload() {
             }
          }
       },
-      'target_service_level':"{{target_service_level}}",
+      "serviceLevel":"{{target_service_level}}",
       "throughputMibps": "{{target_throughput_mibps}}",
       "creationToken":"{{target_volume_name}}",
       "usageThreshold":{{target_usage_threshold}},
@@ -297,8 +297,8 @@ get_volume_payload() {
          "NFSv3"
       ],
       "subnetId":"{{target_subnet_id}}",
-      'target_network_features':"Standard",
-      'target_is_large_volume':"{{target_is_large_volume}}"
+      "networkFeatures":"Standard",
+      "isLargeVolume":"{{target_is_large_volume}}"
    }
 }'
         else
@@ -310,7 +310,7 @@ get_volume_payload() {
       "dataProtection":{
          "replication":{
             "endpointType":"Dst",
-            "replication_schedule":"{{replication_schedule}}",
+            "replicationSchedule":"{{replication_schedule}}",
             "remotePath":{
                "externalHostName":"{{source_hostname}}",
                "serverName":"{{source_server_name}}",
@@ -318,7 +318,7 @@ get_volume_payload() {
             }
          }
       },
-      'target_service_level':"{{target_service_level}}",
+      "serviceLevel":"{{target_service_level}}",
       "creationToken":"{{target_volume_name}}",
       "usageThreshold":{{target_usage_threshold}},
       "exportPolicy":{
@@ -345,8 +345,8 @@ get_volume_payload() {
          "NFSv3"
       ],
       "subnetId":"{{target_subnet_id}}",
-      'target_network_features':"Standard",
-      'target_is_large_volume':"{{target_is_large_volume}}"
+      "networkFeatures":"Standard",
+      "isLargeVolume":"{{target_is_large_volume}}"
    }
 }'
         fi

@@ -342,7 +342,7 @@ function Get-VolumePayload {
         "dataProtection": {
             "replication": {
                 "endpointType": "Dst",
-                "replication_schedule": "{{replication_schedule}}",
+                "replicationSchedule": "{{replication_schedule}}",
                 "remotePath": {
                     "externalHostName": "{{source_hostname}}",
                     "serverName": "{{source_server_name}}",
