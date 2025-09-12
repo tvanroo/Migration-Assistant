@@ -45,20 +45,20 @@ ANF/Migration Assistant/
 The system uses `config.yaml` for all settings. You can edit this file directly or use the interactive setup wizard.
 
 ### Required Variables
-- `tenant`: Azure AD tenant ID
-- `subscriptionId`: Azure subscription ID  
-- `resourceGroupName`: Target resource group
-- `accountName`: NetApp account name
-- `poolName`: Capacity pool name
-- `volumeName`: Destination volume name
-- `appId`: Service principal application ID
-- `appIdPassword`: Service principal secret
-- `location`: Azure region (e.g., "eastus")
+- `azure_tenant_id`: Azure AD tenant ID
+- `azure_subscription_id`: Azure subscription ID  
+- `target_resource_group`: Target resource group
+- `target_netapp_account`: NetApp account name
+- `target_capacity_pool`: Capacity pool name
+- `target_volume_name`: Destination volume name
+- `azure_app_id`: Service principal application ID
+- `azure_app_secret`: Service principal secret
+- `target_location`: Azure region (e.g., "eastus")
 
 ### Protocol & QoS Detection
 The system automatically detects:
-- **Protocol**: NFSv3 vs SMB based on `volumeProtocolTypes`
-- **QoS**: Auto vs Manual based on presence of `volthroughputMibps`
+- **Protocol**: NFSv3 vs SMB based on `target_protocol_types`
+- **QoS**: Auto vs Manual based on presence of `target_throughput_mibps`
 
 ## 🛠 Commands
 
@@ -129,8 +129,8 @@ The system supports 4 combinations:
 ### Example 1: NFSv3 with Auto QoS
 ```bash
 # Configure for NFSv3
-echo 'volumeProtocolTypes: NFSv3' >> config.yaml
-echo 'volthroughputMibps: ""' >> config.yaml
+echo 'target_protocol_types: NFSv3' >> config.yaml
+echo 'target_throughput_mibps: ""' >> config.yaml
 
 # Generate and run
 ./anf_runner.sh generate
@@ -143,8 +143,8 @@ echo 'volthroughputMibps: ""' >> config.yaml
 # At QoS prompt: enter "500" for 500 MiB/s manual throughput
 
 # Or edit config manually
-echo 'volumeProtocolTypes: CIFS' >> config.yaml  
-echo 'volthroughputMibps: "500"' >> config.yaml
+echo 'target_protocol_types: CIFS' >> config.yaml  
+echo 'target_throughput_mibps: "500"' >> config.yaml
 
 # Generate and run
 ./anf_runner.sh generate

@@ -145,7 +145,7 @@ class ANFSetupWizard:
         print("   Enter one IP address at a time. Press ENTER with no input when done.\n")
         
         # Parse existing peer addresses
-        current_peers = existing.get('variables', {}).get('mapeerAddresses', '')
+        current_peers = existing.get('variables', {}).get('source_peer_addresses', '')
         existing_ips = []
         
         if current_peers and current_peers.strip() and current_peers != '192.168.1.100':
@@ -244,8 +244,8 @@ class ANFSetupWizard:
         self.print_section("Azure Basics")
         
         # Tenant ID
-        current_tenant = existing.get('variables', {}).get('tenant', '')
-        self.config['variables']['tenant'] = self.get_input(
+        current_tenant = existing.get('variables', {}).get('azure_tenant_id', '')
+        self.config['variables']['azure_tenant_id'] = self.get_input(
             "Azure AD Tenant ID", 
             current_tenant, 
             required=True, 
@@ -253,8 +253,8 @@ class ANFSetupWizard:
         )
         
         # Subscription ID
-        current_sub = existing.get('variables', {}).get('subscriptionId', '')
-        self.config['variables']['subscriptionId'] = self.get_input(
+        current_sub = existing.get('variables', {}).get('azure_subscription_id', '')
+        self.config['variables']['azure_subscription_id'] = self.get_input(
             "Azure Subscription ID", 
             current_sub, 
             required=True, 
@@ -262,8 +262,8 @@ class ANFSetupWizard:
         )
         
         # Location
-        current_location = existing.get('variables', {}).get('location', '')
-        self.config['variables']['location'] = self.get_input(
+        current_location = existing.get('variables', {}).get('target_location', '')
+        self.config['variables']['target_location'] = self.get_input(
             "Azure Region (e.g., eastus, westus2)", 
             current_location, 
             required=True, 
@@ -271,8 +271,8 @@ class ANFSetupWizard:
         )
         
         # Resource Group
-        current_rg = existing.get('variables', {}).get('resourceGroupName', '')
-        self.config['variables']['resourceGroupName'] = self.get_input(
+        current_rg = existing.get('variables', {}).get('target_resource_group', '')
+        self.config['variables']['target_resource_group'] = self.get_input(
             "Resource Group Name", 
             current_rg, 
             required=True
@@ -284,8 +284,8 @@ class ANFSetupWizard:
         print("💡 You need a service principal with NetApp contributor permissions")
         
         # App ID
-        current_app_id = existing.get('variables', {}).get('appId', '')
-        self.config['variables']['appId'] = self.get_input(
+        current_app_id = existing.get('variables', {}).get('azure_app_id', '')
+        self.config['variables']['azure_app_id'] = self.get_input(
             "Service Principal Application ID", 
             current_app_id, 
             required=True, 
@@ -293,21 +293,21 @@ class ANFSetupWizard:
         )
         
         # App Secret
-        current_secret = existing.get('secrets', {}).get('appIdPassword', '')
+        current_secret = existing.get('secrets', {}).get('azure_app_secret', '')
         if current_secret and current_secret != 'CHANGE_ME':
             print(f"✅ Service principal secret already configured")
             keep_secret = input("Keep existing secret? (Y/n): ").lower()
             if keep_secret == 'y' or keep_secret == '':
-                self.config['secrets']['appIdPassword'] = current_secret
+                self.config['secrets']['azure_app_secret'] = current_secret
             else:
-                self.config['secrets']['appIdPassword'] = self.get_input(
+                self.config['secrets']['azure_app_secret'] = self.get_input(
                     "Service Principal Secret", 
                     "", 
                     required=True, 
                     secret=True
                 )
         else:
-            self.config['secrets']['appIdPassword'] = self.get_input(
+            self.config['secrets']['azure_app_secret'] = self.get_input(
                 "Service Principal Secret", 
                 "", 
                 required=True, 
@@ -315,7 +315,7 @@ class ANFSetupWizard:
             )
         
         # API Endpoints - Auth URL with options
-        current_auth_url = existing.get('variables', {}).get('authcloudurl', '')
+        current_auth_url = existing.get('variables', {}).get('azure_auth_base_url', '')
         
         # Determine current selection
         if 'login.microsoftonline.com' in current_auth_url:
@@ -338,22 +338,22 @@ class ANFSetupWizard:
         )
         
         if auth_choice == '1' or auth_choice.lower() == 'commercial':
-            self.config['variables']['authcloudurl'] = 'https://login.microsoftonline.com/'
+            self.config['variables']['azure_auth_base_url'] = 'https://login.microsoftonline.com/'
         elif auth_choice == '2' or auth_choice.lower() == 'government':
-            self.config['variables']['authcloudurl'] = 'https://login.microsoftonline.us/'
+            self.config['variables']['azure_auth_base_url'] = 'https://login.microsoftonline.us/'
         elif auth_choice == '3' or auth_choice.lower() == 'other':
-            self.config['variables']['authcloudurl'] = self.get_input(
+            self.config['variables']['azure_auth_base_url'] = self.get_input(
                 "Custom Auth URL", 
                 current_auth_url, 
                 required=True
             )
         else:
             # Default to commercial if invalid choice
-            self.config['variables']['authcloudurl'] = 'https://login.microsoftonline.com/'
+            self.config['variables']['azure_auth_base_url'] = 'https://login.microsoftonline.com/'
         
         # API URL - standard for all regions
-        current_api_url = existing.get('variables', {}).get('apicloudurl', '')
-        self.config['variables']['apicloudurl'] = self.get_input(
+        current_api_url = existing.get('variables', {}).get('azure_api_base_url', '')
+        self.config['variables']['azure_api_base_url'] = self.get_input(
             "Azure Management API URL", 
             current_api_url, 
             required=True
@@ -364,24 +364,24 @@ class ANFSetupWizard:
         self.print_section("Azure NetApp Files Resources")
         
         # Account Name
-        current_account = existing.get('variables', {}).get('accountName', '')
-        self.config['variables']['accountName'] = self.get_input(
+        current_account = existing.get('variables', {}).get('target_netapp_account', '')
+        self.config['variables']['target_netapp_account'] = self.get_input(
             "NetApp Account Name", 
             current_account, 
             required=True
         )
         
         # Pool Name
-        current_pool = existing.get('variables', {}).get('poolName', '')
-        self.config['variables']['poolName'] = self.get_input(
+        current_pool = existing.get('variables', {}).get('target_capacity_pool', '')
+        self.config['variables']['target_capacity_pool'] = self.get_input(
             "Capacity Pool Name", 
             current_pool, 
             required=True
         )
         
         # Service Level
-        current_service_level = existing.get('variables', {}).get('serviceLevel', '')
-        self.config['variables']['serviceLevel'] = self.get_input(
+        current_service_level = existing.get('variables', {}).get('target_service_level', '')
+        self.config['variables']['target_service_level'] = self.get_input(
             "Service Level (Standard/Premium/Ultra)", 
             current_service_level, 
             required=True, 
@@ -389,9 +389,9 @@ class ANFSetupWizard:
         )
         
         # Volume subnet
-        current_subnet = existing.get('variables', {}).get('volsubnetId', '')
+        current_subnet = existing.get('variables', {}).get('target_subnet_id', '')
         print("\n💡 Volume subnet format: /subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}/subnets/{subnet}")
-        self.config['variables']['volsubnetId'] = self.get_input(
+        self.config['variables']['target_subnet_id'] = self.get_input(
             "Volume Subnet ID", 
             current_subnet, 
             required=True
@@ -402,15 +402,15 @@ class ANFSetupWizard:
         self.print_section("Migration Configuration")
         
         # Destination Volume
-        current_vol_name = existing.get('variables', {}).get('volumeName', '')
-        self.config['variables']['volumeName'] = self.get_input(
+        current_vol_name = existing.get('variables', {}).get('target_volume_name', '')
+        self.config['variables']['target_volume_name'] = self.get_input(
             "Destination Volume Name", 
             current_vol_name, 
             required=True
         )
         
         # Volume size (in bytes)
-        current_usage = existing.get('variables', {}).get('volusageThreshold', '')
+        current_usage = existing.get('variables', {}).get('target_usage_threshold', '')
         size_gb = int(current_usage) // (1024**3) if current_usage and current_usage.isdigit() else 100
         print(f"\n💡 Current size: {size_gb} GB")
         new_size_gb = self.get_input(
@@ -419,11 +419,11 @@ class ANFSetupWizard:
             required=True, 
             validate_func=self.validate_numeric
         )
-        self.config['variables']['volusageThreshold'] = str(int(new_size_gb) * 1024**3)
+        self.config['variables']['target_usage_threshold'] = str(int(new_size_gb) * 1024**3)
         
         # Protocol
-        current_protocol = existing.get('variables', {}).get('volumeProtocolTypes', '')
-        self.config['variables']['volumeProtocolTypes'] = self.get_input(
+        current_protocol = existing.get('variables', {}).get('target_protocol_types', '')
+        self.config['variables']['target_protocol_types'] = self.get_input(
             "Protocol Type (NFSv3/NFSv4.1/CIFS)", 
             current_protocol, 
             required=True, 
@@ -431,7 +431,7 @@ class ANFSetupWizard:
         )
         
         # QoS Setting
-        current_throughput = existing.get('variables', {}).get('volthroughputMibps', '')
+        current_throughput = existing.get('variables', {}).get('target_throughput_mibps', '')
         
         # Determine current QoS type for display
         if current_throughput and current_throughput.strip():
@@ -448,44 +448,44 @@ class ANFSetupWizard:
         
         # Process QoS input
         if qos_input.lower() == 'auto':
-            self.config['variables']['volthroughputMibps'] = ''
+            self.config['variables']['target_throughput_mibps'] = ''
         elif qos_input.isdigit():
-            self.config['variables']['volthroughputMibps'] = qos_input
+            self.config['variables']['target_throughput_mibps'] = qos_input
         else:
             # Try to parse as number
             try:
                 float(qos_input)
-                self.config['variables']['volthroughputMibps'] = qos_input
+                self.config['variables']['target_throughput_mibps'] = qos_input
             except ValueError:
                 print("⚠️  Invalid QoS input. Using 'Auto' as fallback.")
-                self.config['variables']['volthroughputMibps'] = ''
+                self.config['variables']['target_throughput_mibps'] = ''
         
         # Source cluster details
         print("\n📋 Source ONTAP Cluster Information")
         
-        current_cluster = existing.get('variables', {}).get('maclusterName', '')
-        self.config['variables']['maclusterName'] = self.get_input(
+        current_cluster = existing.get('variables', {}).get('source_cluster_name', '')
+        self.config['variables']['source_cluster_name'] = self.get_input(
             "Source Cluster Name", 
             current_cluster, 
             required=True
         )
         
-        current_hostname = existing.get('variables', {}).get('maexternalHostName', '')
-        self.config['variables']['maexternalHostName'] = self.get_input(
+        current_hostname = existing.get('variables', {}).get('source_hostname', '')
+        self.config['variables']['source_hostname'] = self.get_input(
             "Source External Host Name/IP", 
             current_hostname, 
             required=True
         )
         
-        current_server = existing.get('variables', {}).get('maserverName', '')
-        self.config['variables']['maserverName'] = self.get_input(
+        current_server = existing.get('variables', {}).get('source_server_name', '')
+        self.config['variables']['source_server_name'] = self.get_input(
             "Source Server/SVM Name", 
             current_server, 
             required=True
         )
         
-        current_source_vol = existing.get('variables', {}).get('mavolumeName', '')
-        self.config['variables']['mavolumeName'] = self.get_input(
+        current_source_vol = existing.get('variables', {}).get('source_volume_name', '')
+        self.config['variables']['source_volume_name'] = self.get_input(
             "Source Volume Name", 
             current_source_vol, 
             required=True
@@ -493,11 +493,11 @@ class ANFSetupWizard:
         
         # Peer addresses
         peer_addresses = self.collect_peer_addresses(existing)
-        self.config['variables']['mapeerAddresses'] = peer_addresses
+        self.config['variables']['source_peer_addresses'] = peer_addresses
         
         # Replication schedule
-        current_schedule = existing.get('variables', {}).get('replicationSchedule', '')
-        self.config['variables']['replicationSchedule'] = self.get_input(
+        current_schedule = existing.get('variables', {}).get('replication_schedule', '')
+        self.config['variables']['replication_schedule'] = self.get_input(
             "Replication Schedule (Hourly/Daily/Weekly)", 
             current_schedule, 
             required=True, 
@@ -509,24 +509,24 @@ class ANFSetupWizard:
         self.print_section("Optional Settings")
         
         # API Version
-        current_api_version = existing.get('variables', {}).get('api-version', '')
-        self.config['variables']['api-version'] = self.get_input(
+        current_api_version = existing.get('variables', {}).get('azure_api_version', '')
+        self.config['variables']['azure_api_version'] = self.get_input(
             "API Version", 
             current_api_version, 
             required=True
         )
         
         # Large volume support
-        current_large_vol = existing.get('variables', {}).get('isLargeVolume', '')
+        current_large_vol = existing.get('variables', {}).get('target_is_large_volume', '')
         large_vol = self.get_input(
             "Enable Large Volume Support (true/false)", 
             current_large_vol, 
             required=True
         )
-        self.config['variables']['isLargeVolume'] = large_vol.lower()
+        self.config['variables']['target_is_large_volume'] = large_vol.lower()
         
         # Network features - always use Standard
-        self.config['variables']['networkFeatures'] = 'Standard'
+        self.config['variables']['target_network_features'] = 'Standard'
     
     def save_configuration(self):
         """Save configuration to file"""
@@ -547,28 +547,28 @@ class ANFSetupWizard:
         """Show configuration summary"""
         self.print_section("Configuration Summary")
         
-        protocol = self.config['variables'].get('volumeProtocolTypes', 'Unknown')
-        throughput = self.config['variables'].get('volthroughputMibps', '')
+        protocol = self.config['variables'].get('target_protocol_types', 'Unknown')
+        throughput = self.config['variables'].get('target_throughput_mibps', '')
         if throughput and throughput.strip():
             qos_type = f'Manual QoS ({throughput} MiB/s)'
         else:
             qos_type = 'Auto QoS'
-        size_bytes = int(self.config['variables'].get('volusageThreshold', '0'))
+        size_bytes = int(self.config['variables'].get('target_usage_threshold', '0'))
         size_gb = size_bytes // (1024**3) if size_bytes > 0 else 0
         
-        print(f"🌐 Azure Region: {self.config['variables'].get('location')}")
-        print(f"📁 Resource Group: {self.config['variables'].get('resourceGroupName')}")
-        print(f"🗄️  NetApp Account: {self.config['variables'].get('accountName')}")
-        print(f"📊 Capacity Pool: {self.config['variables'].get('poolName')}")
-        print(f"💾 Destination Volume: {self.config['variables'].get('volumeName')} ({size_gb} GB)")
+        print(f"🌐 Azure Region: {self.config['variables'].get('target_location')}")
+        print(f"📁 Resource Group: {self.config['variables'].get('target_resource_group')}")
+        print(f"🗄️  NetApp Account: {self.config['variables'].get('target_netapp_account')}")
+        print(f"📊 Capacity Pool: {self.config['variables'].get('target_capacity_pool')}")
+        print(f"💾 Destination Volume: {self.config['variables'].get('target_volume_name')} ({size_gb} GB)")
         print(f"🔌 Protocol: {protocol}")
         print(f"⚡ QoS: {qos_type}")
-        print(f"🔄 Replication: {self.config['variables'].get('replicationSchedule')}")
-        print(f"🖥️  Source Cluster: {self.config['variables'].get('maclusterName')}")
-        print(f"📂 Source Volume: {self.config['variables'].get('mavolumeName')}")
+        print(f"🔄 Replication: {self.config['variables'].get('replication_schedule')}")
+        print(f"🖥️  Source Cluster: {self.config['variables'].get('source_cluster_name')}")
+        print(f"📂 Source Volume: {self.config['variables'].get('source_volume_name')}")
         
         # Show peer addresses
-        peer_addresses = self.config['variables'].get('mapeerAddresses', '')
+        peer_addresses = self.config['variables'].get('source_peer_addresses', '')
         if peer_addresses:
             try:
                 import json

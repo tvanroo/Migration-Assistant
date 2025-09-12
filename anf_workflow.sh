@@ -54,7 +54,7 @@ with open('$CONFIG_FILE') as f:
 
 # Get protocol and QoS from config
 get_protocol() {
-    local protocol_types=$(get_config_value "volumeProtocolTypes")
+    local protocol_types=$(get_config_value 'target_protocol_types')
     if [[ "$protocol_types" == *"SMB"* || "$protocol_types" == *"CIFS"* ]]; then
         echo "SMB"
     else
@@ -63,7 +63,7 @@ get_protocol() {
 }
 
 get_qos() {
-    local throughput=$(get_config_value "volthroughputMibps")
+    local throughput=$(get_config_value 'target_throughput_mibps')
     if [[ -n "$throughput" && "$throughput" != "" ]]; then
         echo "Manual"
     else
@@ -75,12 +75,12 @@ get_qos() {
 get_token() {
     info "Requesting Azure AD token..."
     
-    local tenant=$(get_config_value "tenant")
-    local app_id=$(get_config_value "appId")
-    local app_secret=$(get_config_value "appIdPassword")
-    local auth_url=$(get_config_value "authcloudurl")
-    local api_url=$(get_config_value "apicloudurl")
-    local api_version=$(get_config_value "api-version")
+    local tenant=$(get_config_value 'azure_tenant_id')
+    local app_id=$(get_config_value 'azure_app_id')
+    local app_secret=$(get_config_value 'azure_app_secret')
+    local auth_url=$(get_config_value 'azure_auth_base_url')
+    local api_url=$(get_config_value 'azure_api_base_url')
+    local api_version=$(get_config_value 'azure_api_version')
     
     if [[ -z "$tenant" || -z "$app_id" || -z "$app_secret" ]]; then
         error_exit "Missing required authentication parameters in config"
@@ -133,8 +133,8 @@ run_api_call() {
     fi
     
     local token=$(cat "$TOKEN_FILE")
-    local api_url=$(get_config_value "apicloudurl")
-    local api_version=$(get_config_value "api-version")
+    local api_url=$(get_config_value 'azure_api_base_url')
+    local api_version=$(get_config_value 'azure_api_version')
     
     # Build the full URL
     local full_url="${api_url}${endpoint}?api-version=${api_version}"
@@ -189,64 +189,64 @@ get_volume_payload() {
         if [[ "$qos" == "Manual" ]]; then
             echo '{
     "type": "Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
-    "location": "{{location}}",
+    'target_location': "{{target_location}}",
     "properties": {
         "volumeType": "Migration",
         "dataProtection": {
             "replication": {
                 "endpointType": "Dst",
-                "replicationSchedule": "{{replicationSchedule}}",
+                'replication_schedule': "{{replication_schedule}}",
                 "remotePath": {
-                    "externalHostName": "{{maexternalHostName}}",
-                    "serverName": "{{maserverName}}",
-                    "volumeName": "{{mavolumeName}}"
+                    "externalHostName": "{{source_hostname}}",
+                    "serverName": "{{source_server_name}}",
+                    'target_volume_name': "{{source_volume_name}}"
                 }
             }
         },
-        "serviceLevel": "{{serviceLevel}}",
-        "throughputMibps": "{{volthroughputMibps}}",
-        "creationToken": "{{volumeName}}",
-        "usageThreshold": "{{volusageThreshold}}",
+        'target_service_level': "{{target_service_level}}",
+        "throughputMibps": "{{target_throughput_mibps}}",
+        "creationToken": "{{target_volume_name}}",
+        "usageThreshold": "{{target_usage_threshold}}",
         "exportPolicy": {
             "rules": []
         },
         "protocolTypes": [
             "CIFS"
         ],
-        "subnetId": "{{volsubnetId}}",
-        "networkFeatures": "Standard",
-        "isLargeVolume": "{{isLargeVolume}}"
+        "subnetId": "{{target_subnet_id}}",
+        'target_network_features': "Standard",
+        'target_is_large_volume': "{{target_is_large_volume}}"
     }
 }'
         else
             echo '{
     "type": "Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
-    "location": "{{location}}",
+    'target_location': "{{target_location}}",
     "properties": {
         "volumeType": "Migration",
         "dataProtection": {
             "replication": {
                 "endpointType": "Dst",
-                "replicationSchedule": "{{replicationSchedule}}",
+                'replication_schedule': "{{replication_schedule}}",
                 "remotePath": {
-                    "externalHostName": "{{maexternalHostName}}",
-                    "serverName": "{{maserverName}}",
-                    "volumeName": "{{mavolumeName}}"
+                    "externalHostName": "{{source_hostname}}",
+                    "serverName": "{{source_server_name}}",
+                    'target_volume_name': "{{source_volume_name}}"
                 }
             }
         },
-        "serviceLevel": "{{serviceLevel}}",
-        "creationToken": "{{volumeName}}",
-        "usageThreshold": "{{volusageThreshold}}",
+        'target_service_level': "{{target_service_level}}",
+        "creationToken": "{{target_volume_name}}",
+        "usageThreshold": "{{target_usage_threshold}}",
         "exportPolicy": {
             "rules": []
         },
         "protocolTypes": [
             "CIFS"
         ],
-        "subnetId": "{{volsubnetId}}",
-        "networkFeatures": "Standard",
-        "isLargeVolume": "{{isLargeVolume}}"
+        "subnetId": "{{target_subnet_id}}",
+        'target_network_features': "Standard",
+        'target_is_large_volume': "{{target_is_large_volume}}"
     }
 }'
         fi
@@ -255,24 +255,24 @@ get_volume_payload() {
         if [[ "$qos" == "Manual" ]]; then
             echo '{
    "type":"Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
-   "location":"{{location}}",
+   'target_location':"{{target_location}}",
    "properties":{
       "volumeType":"Migration",
       "dataProtection":{
          "replication":{
             "endpointType":"Dst",
-            "replicationSchedule":"{{replicationSchedule}}",
+            'replication_schedule':"{{replication_schedule}}",
             "remotePath":{
-               "externalHostName":"{{maexternalHostName}}",
-               "serverName":"{{maserverName}}",
-               "volumeName":"{{mavolumeName}}"
+               "externalHostName":"{{source_hostname}}",
+               "serverName":"{{source_server_name}}",
+               'target_volume_name':"{{source_volume_name}}"
             }
          }
       },
-      "serviceLevel":"{{serviceLevel}}",
-      "throughputMibps": "{{volthroughputMibps}}",
-      "creationToken":"{{volumeName}}",
-      "usageThreshold":{{volusageThreshold}},
+      'target_service_level':"{{target_service_level}}",
+      "throughputMibps": "{{target_throughput_mibps}}",
+      "creationToken":"{{target_volume_name}}",
+      "usageThreshold":{{target_usage_threshold}},
       "exportPolicy":{
          "rules":[
             {
@@ -296,31 +296,31 @@ get_volume_payload() {
       "protocolTypes":[
          "NFSv3"
       ],
-      "subnetId":"{{volsubnetId}}",
-      "networkFeatures":"Standard",
-      "isLargeVolume":"{{isLargeVolume}}"
+      "subnetId":"{{target_subnet_id}}",
+      'target_network_features':"Standard",
+      'target_is_large_volume':"{{target_is_large_volume}}"
    }
 }'
         else
             echo '{
    "type":"Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
-   "location":"{{location}}",
+   'target_location':"{{target_location}}",
    "properties":{
       "volumeType":"Migration",
       "dataProtection":{
          "replication":{
             "endpointType":"Dst",
-            "replicationSchedule":"{{replicationSchedule}}",
+            'replication_schedule':"{{replication_schedule}}",
             "remotePath":{
-               "externalHostName":"{{maexternalHostName}}",
-               "serverName":"{{maserverName}}",
-               "volumeName":"{{mavolumeName}}"
+               "externalHostName":"{{source_hostname}}",
+               "serverName":"{{source_server_name}}",
+               'target_volume_name':"{{source_volume_name}}"
             }
          }
       },
-      "serviceLevel":"{{serviceLevel}}",
-      "creationToken":"{{volumeName}}",
-      "usageThreshold":{{volusageThreshold}},
+      'target_service_level':"{{target_service_level}}",
+      "creationToken":"{{target_volume_name}}",
+      "usageThreshold":{{target_usage_threshold}},
       "exportPolicy":{
          "rules":[
             {
@@ -344,9 +344,9 @@ get_volume_payload() {
       "protocolTypes":[
          "NFSv3"
       ],
-      "subnetId":"{{volsubnetId}}",
-      "networkFeatures":"Standard",
-      "isLargeVolume":"{{isLargeVolume}}"
+      "subnetId":"{{target_subnet_id}}",
+      'target_network_features':"Standard",
+      'target_is_large_volume':"{{target_is_large_volume}}"
    }
 }'
         fi
@@ -366,37 +366,37 @@ run_workflow() {
     # Step 2: Create target volume
     local volume_payload=$(get_volume_payload)
     run_api_call "create_volume" "PUT" \
-        "/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}" \
+        "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}" \
         "$volume_payload" \
         "Create Target Volume ($protocol with $qos QoS)"
     
     # Step 3: Issue cluster peer request
     run_api_call "peer_request" "POST" \
-        "/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/peerExternalCluster" \
-        '{"PeerClusterName":"{{maclusterName}}","PeerAddresses":["{{mapeerAddresses}}"]}' \
+        "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/peerExternalCluster" \
+        '{"PeerClusterName":"{{source_cluster_name}}","PeerAddresses":["{{source_peer_addresses}}"]}' \
         "Issue Cluster Peer Request"
     
     # Step 4: Authorize external replication
     run_api_call "authorize_replication" "POST" \
-        "/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/authorizeExternalReplication" \
+        "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/authorizeExternalReplication" \
         "" \
         "Authorize External Replication"
     
     # Step 5: Perform replication transfer
     run_api_call "replication_transfer" "POST" \
-        "/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/performReplicationTransfer" \
+        "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/performReplicationTransfer" \
         "" \
         "Perform Replication Transfer"
     
     # Step 6: Break replication relationship
     run_api_call "break_replication" "POST" \
-        "/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/breakReplication" \
+        "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/breakReplication" \
         "" \
         "Break Replication Relationship"
     
     # Step 7: Finalize external replication
     run_api_call "finalize_replication" "POST" \
-        "/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/finalizeExternalReplication" \
+        "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/finalizeExternalReplication" \
         "" \
         "Finalize External Replication"
     
@@ -409,15 +409,15 @@ show_config() {
     local qos=$(get_qos)
     
     echo "📋 Current Configuration:"
-    echo "🌐 Azure Region: $(get_config_value 'location')"
-    echo "📁 Resource Group: $(get_config_value 'resourceGroupName')" 
-    echo "🗄️  NetApp Account: $(get_config_value 'accountName')"
-    echo "📊 Capacity Pool: $(get_config_value 'poolName')"
-    echo "💾 Volume: $(get_config_value 'volumeName')"
+    echo "🌐 Azure Region: $(get_config_value 'target_location')"
+    echo "📁 Resource Group: $(get_config_value 'target_resource_group')" 
+    echo "🗄️  NetApp Account: $(get_config_value 'target_netapp_account')"
+    echo "📊 Capacity Pool: $(get_config_value 'target_capacity_pool')"
+    echo "💾 Volume: $(get_config_value 'target_volume_name')"
     echo "🔌 Protocol: $protocol"
     echo "⚡ QoS: $qos"
-    echo "🔄 Replication: $(get_config_value 'replicationSchedule')"
-    echo "🖥️  Source Cluster: $(get_config_value 'maclusterName')"
+    echo "🔄 Replication: $(get_config_value 'replication_schedule')"
+    echo "🖥️  Source Cluster: $(get_config_value 'source_cluster_name')"
 }
 
 # Main execution

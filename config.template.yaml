@@ -1,30 +1,41 @@
 
 # Template config.yaml for Migration Assistant
 # Fill in your values below and rename to config.yaml for use
+
+# Sensitive authentication data
 secrets:
-  appIdPassword: <APP_ID_PASSWORD>
+  azure_app_secret: <AZURE_APP_SECRET>
+
+# Configuration variables
 variables:
-  accountName: <ACCOUNT_NAME>
-  api-version: <API_VERSION>
-  apicloudurl: <API_CLOUD_URL>
-  appId: <APP_ID>
-  authcloudurl: <AUTH_CLOUD_URL>
-  isLargeVolume: <TRUE_OR_FALSE>
-  location: <LOCATION>
-  maclusterName: <SOURCE_CLUSTER_NAME>
-  maexternalHostName: <SOURCE_NETAPP_HOSTNAME>
-  mapeerAddresses: <PEER_ADDRESSES>
-  maserverName: <SOURCE_NETAPP_SERVERNAME>
-  mavolumeName: <SOURCE_VOLUME_NAME>
-  networkFeatures: <NETWORK_FEATURES>
-  poolName: <POOL_NAME>
-  replicationSchedule: <REPLICATION_SCHEDULE>
-  resourceGroupName: <RESOURCE_GROUP_NAME>
-  serviceLevel: <SERVICE_LEVEL>
-  subscriptionId: <SUBSCRIPTION_ID>
-  tenant: <TENANT_ID>
-  volsubnetId: <VIRTUAL_NETWORK_SUBNET_ID>
-  volthroughputMibps: <THROUGHPUT_MIBPS>
-  volumeName: <VOLUME_NAME>
-  volumeProtocolTypes: <VOLUME_PROTOCOL_TYPES>
-  volusageThreshold: <USAGE_THRESHOLD>
+  # Azure Authentication & API Configuration
+  azure_tenant_id: <AZURE_TENANT_ID>
+  azure_subscription_id: <AZURE_SUBSCRIPTION_ID>
+  azure_app_id: <AZURE_APP_ID>
+  azure_api_version: <AZURE_API_VERSION>
+  azure_api_base_url: <AZURE_API_BASE_URL>
+  azure_auth_base_url: <AZURE_AUTH_BASE_URL>
+  
+  # Target Azure NetApp Files Configuration
+  target_resource_group: <TARGET_RESOURCE_GROUP>
+  target_location: <TARGET_LOCATION>
+  target_netapp_account: <TARGET_NETAPP_ACCOUNT>
+  target_capacity_pool: <TARGET_CAPACITY_POOL>
+  target_volume_name: <TARGET_VOLUME_NAME>
+  target_service_level: <TARGET_SERVICE_LEVEL>
+  target_subnet_id: <TARGET_SUBNET_ID>
+  target_network_features: <TARGET_NETWORK_FEATURES>
+  target_is_large_volume: <TARGET_IS_LARGE_VOLUME>
+  target_usage_threshold: <TARGET_USAGE_THRESHOLD>
+  target_throughput_mibps: <TARGET_THROUGHPUT_MIBPS>
+  target_protocol_types: <TARGET_PROTOCOL_TYPES>
+  
+  # Source NetApp Configuration (Migration Source)
+  source_cluster_name: <SOURCE_CLUSTER_NAME>
+  source_hostname: <SOURCE_HOSTNAME>
+  source_peer_addresses: <SOURCE_PEER_ADDRESSES>
+  source_server_name: <SOURCE_SERVER_NAME>
+  source_volume_name: <SOURCE_VOLUME_NAME>
+  
+  # Replication Configuration
+  replication_schedule: <REPLICATION_SCHEDULE>

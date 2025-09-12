@@ -88,12 +88,12 @@ with open('$CONFIG_FILE') as f:
 get_token() {
     info "Requesting Azure AD token..."
     
-    local tenant=$(get_config_value "tenant")
-    local app_id=$(get_config_value "appId")
-    local app_secret=$(get_config_value "appIdPassword")
-    local auth_url=$(get_config_value "authcloudurl")
-    local api_url=$(get_config_value "apicloudurl")
-    local api_version=$(get_config_value "api-version")
+    local tenant=$(get_config_value 'azure_tenant_id')
+    local app_id=$(get_config_value 'azure_app_id')
+    local app_secret=$(get_config_value 'azure_app_secret')
+    local auth_url=$(get_config_value 'azure_auth_base_url')
+    local api_url=$(get_config_value 'azure_api_base_url')
+    local api_version=$(get_config_value 'azure_api_version')
     
     if [[ -z "$tenant" || -z "$app_id" || -z "$app_secret" ]]; then
         error_exit "Missing required authentication parameters in config"
