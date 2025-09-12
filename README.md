@@ -44,16 +44,31 @@ python3 -c "import yaml, json, sys; print('✅ All dependencies available')"
 ### 1. Interactive Setup
 Configure your migration settings using the interactive wizard:
 
+**Linux/macOS:**
 ```bash
 ./anf_runner.sh setup
 ```
 
+**Windows:**
+```powershell
+.\anf_runner.ps1 setup
+```
+
 ### 2. Validate Configuration
+
+**Linux/macOS:**
 ```bash
 ./anf_runner.sh validate
 ```
 
+**Windows:**
+```powershell
+.\anf_runner.ps1 validate
+```
+
 ### 3. Run Migration Workflow
+
+**Linux/macOS:**
 ```bash
 # Auto-detect protocol and QoS from config
 ./anf_runner.sh generate
@@ -61,6 +76,16 @@ Configure your migration settings using the interactive wizard:
 # Or specify explicitly
 ./anf_runner.sh generate NFSv3 Auto
 ./anf_runner.sh generate SMB Manual
+```
+
+**Windows:**
+```powershell
+# Auto-detect protocol and QoS from config
+.\anf_runner.ps1 generate
+
+# Or specify explicitly
+.\anf_runner.ps1 generate NFSv3 Auto
+.\anf_runner.ps1 generate SMB Manual
 ```
 
 ## �️ Cross-Platform Support

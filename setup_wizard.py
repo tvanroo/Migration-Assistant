@@ -627,9 +627,17 @@ class ANFSetupWizard:
                 
                 print(f"\n🎉 Setup completed successfully!")
                 print(f"\nNext steps:")
-                print(f"1. Validate: ./anf_runner.sh validate")
-                print(f"2. Run workflow: ./anf_interactive.sh")
-                print(f"3. Check logs: tail -f anf_migration.log")
+                print(f"1. Validate configuration:")
+                print(f"   Linux/macOS: ./anf_runner.sh validate")
+                print(f"   Windows:     .\\anf_runner.ps1 validate")
+                print(f"")
+                print(f"2. Run interactive workflow:")
+                print(f"   Linux/macOS: ./anf_interactive.sh")
+                print(f"   Windows:     .\\anf_interactive.ps1")
+                print(f"")
+                print(f"3. Check logs:")
+                print(f"   Linux/macOS: tail -f anf_migration.log")
+                print(f"   Windows:     Get-Content anf_migration.log -Wait")
                 
                 return True
                 
