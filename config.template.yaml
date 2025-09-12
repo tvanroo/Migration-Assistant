@@ -1,0 +1,30 @@
+
+# Template config.yaml for Migration Assistant
+# Fill in your values below and rename to config.yaml for use
+secrets:
+  appIdPassword: <APP_ID_PASSWORD>
+variables:
+  accountName: <ACCOUNT_NAME>
+  api-version: <API_VERSION>
+  apicloudurl: <API_CLOUD_URL>
+  appId: <APP_ID>
+  authcloudurl: <AUTH_CLOUD_URL>
+  isLargeVolume: <TRUE_OR_FALSE>
+  location: <LOCATION>
+  maclusterName: <SOURCE_CLUSTER_NAME>
+  maexternalHostName: <SOURCE_NETAPP_HOSTNAME>
+  mapeerAddresses: <PEER_ADDRESSES>
+  maserverName: <SOURCE_NETAPP_SERVERNAME>
+  mavolumeName: <SOURCE_VOLUME_NAME>
+  networkFeatures: <NETWORK_FEATURES>
+  poolName: <POOL_NAME>
+  replicationSchedule: <REPLICATION_SCHEDULE>
+  resourceGroupName: <RESOURCE_GROUP_NAME>
+  serviceLevel: <SERVICE_LEVEL>
+  subscriptionId: <SUBSCRIPTION_ID>
+  tenant: <TENANT_ID>
+  volsubnetId: <VIRTUAL_NETWORK_SUBNET_ID>
+  volthroughputMibps: <THROUGHPUT_MIBPS>
+  volumeName: <VOLUME_NAME>
+  volumeProtocolTypes: <VOLUME_PROTOCOL_TYPES>
+  volusageThreshold: <USAGE_THRESHOLD>
