@@ -1,4 +1,9 @@
-# Migration Assistant
+# Migr## 📋 Requirements
+
+### System Requirements
+- **Python 3.6+** (recommended: Python 3.7+)
+- **curl** - For API calls (Linux/macOS) or PowerShell Invoke-WebRequest (Windows)
+- **bash** - Shell environment (Linux/macOS) or **PowerShell 5.0+** (Windows)Assistant
 
 # Azure NetApp Files Migration Assistant
 
@@ -13,8 +18,16 @@ A command-line tool for managing Azure NetApp Files migration workflows with rob
 
 ### Python Dependencies
 ```bash
-# Install required Python package
+# Linux/macOS
 pip install PyYAML
+
+# Windows (Command Prompt or PowerShell)
+pip install PyYAML
+# or if you get permission errors:
+pip install --user PyYAML
+
+# Conda (all platforms)
+conda install pyyaml
 ```
 
 ### Verification
@@ -50,7 +63,43 @@ Configure your migration settings using the interactive wizard:
 ./anf_runner.sh generate SMB Manual
 ```
 
-## 📁 Project Structure
+## �️ Cross-Platform Support
+
+This Migration Assistant supports both Unix/Linux/macOS (bash) and Windows (PowerShell) environments:
+
+### Linux/macOS (Bash Scripts)
+```bash
+# Interactive setup
+./anf_runner.sh setup
+
+# Validate configuration  
+./anf_runner.sh validate
+
+# Run interactive workflow
+./anf_interactive.sh
+```
+
+### Windows (PowerShell Scripts)
+```powershell
+# Interactive setup
+.\anf_runner.ps1 setup
+
+# Validate configuration
+.\anf_runner.ps1 validate
+
+# Run interactive workflow
+.\anf_interactive.ps1
+```
+
+### Available Script Pairs
+| Purpose | Linux/macOS | Windows |
+|---------|-------------|---------|
+| Main Runner | `anf_runner.sh` | `anf_runner.ps1` |
+| Core Workflow | `anf_workflow.sh` | `anf_workflow.ps1` |
+| Interactive Mode | `anf_interactive.sh` | `anf_interactive.ps1` |
+| Setup Wizard | `setup_wizard.py` | `setup_wizard.py` |
+
+## �📁 Project Structure
 
 ```
 ANF/Migration Assistant/

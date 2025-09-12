@@ -6,10 +6,22 @@ Walks through configuring all required variables step by step
 
 import os
 import re
-import yaml
+import sys
 import getpass
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+# Check for required dependencies
+try:
+    import yaml
+except ImportError:
+    print("❌ Error: PyYAML is required but not installed.")
+    print("\n💡 To fix this, run one of the following commands:")
+    print("   pip install PyYAML")
+    print("   pip3 install PyYAML")
+    print("   pip install --user PyYAML")
+    print("\n📚 For more help, see: https://pyyaml.org/wiki/PyYAMLDocumentation")
+    sys.exit(1)
 
 class ANFSetupWizard:
     """Interactive wizard for setting up ANF Migration Assistant"""
@@ -262,7 +274,7 @@ class ANFSetupWizard:
         )
         
         # Location
-        current_location = existing.get('variables', {}).get('target_location', '')
+        current_location = existing.get('variables', {}).get('target_location', 'eastus2')
         self.config['variables']['target_location'] = self.get_input(
             "Azure Region (e.g., eastus, westus2)", 
             current_location, 
@@ -352,7 +364,7 @@ class ANFSetupWizard:
             self.config['variables']['azure_auth_base_url'] = 'https://login.microsoftonline.com/'
         
         # API URL - standard for all regions
-        current_api_url = existing.get('variables', {}).get('azure_api_base_url', '')
+        current_api_url = existing.get('variables', {}).get('azure_api_base_url', 'https://management.azure.com')
         self.config['variables']['azure_api_base_url'] = self.get_input(
             "Azure Management API URL", 
             current_api_url, 
@@ -422,7 +434,7 @@ class ANFSetupWizard:
         self.config['variables']['target_usage_threshold'] = str(int(new_size_gb) * 1024**3)
         
         # Protocol
-        current_protocol = existing.get('variables', {}).get('target_protocol_types', '')
+        current_protocol = existing.get('variables', {}).get('target_protocol_types', 'CIFS')
         self.config['variables']['target_protocol_types'] = self.get_input(
             "Protocol Type (NFSv3/NFSv4.1/CIFS)", 
             current_protocol, 
@@ -496,7 +508,7 @@ class ANFSetupWizard:
         self.config['variables']['source_peer_addresses'] = peer_addresses
         
         # Replication schedule
-        current_schedule = existing.get('variables', {}).get('replication_schedule', '')
+        current_schedule = existing.get('variables', {}).get('replication_schedule', 'Hourly')
         self.config['variables']['replication_schedule'] = self.get_input(
             "Replication Schedule (Hourly/Daily/Weekly)", 
             current_schedule, 
@@ -509,7 +521,7 @@ class ANFSetupWizard:
         self.print_section("Optional Settings")
         
         # API Version
-        current_api_version = existing.get('variables', {}).get('azure_api_version', '')
+        current_api_version = existing.get('variables', {}).get('azure_api_version', '2025-06-01')
         self.config['variables']['azure_api_version'] = self.get_input(
             "API Version", 
             current_api_version, 
@@ -517,7 +529,7 @@ class ANFSetupWizard:
         )
         
         # Large volume support
-        current_large_vol = existing.get('variables', {}).get('target_is_large_volume', '')
+        current_large_vol = existing.get('variables', {}).get('target_is_large_volume', 'false')
         large_vol = self.get_input(
             "Enable Large Volume Support (true/false)", 
             current_large_vol, 
@@ -616,7 +628,7 @@ class ANFSetupWizard:
                 print(f"\n🎉 Setup completed successfully!")
                 print(f"\nNext steps:")
                 print(f"1. Validate: ./anf_runner.sh validate")
-                print(f"2. Run workflow: ./anf_runner.sh generate")
+                print(f"2. Run workflow: ./anf_interactive.sh")
                 print(f"3. Check logs: tail -f anf_migration.log")
                 
                 return True
