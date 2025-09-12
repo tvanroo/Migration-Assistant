@@ -1,0 +1,818 @@
+{
+	"info": {
+		"_postman_id": "668efb75-2c6a-41de-af43-40b33cc118f5",
+		"name": "Azure NetApp Files plus ANF Migration Assistant",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "44511214",
+		"_collection_link": "https://tobyvanroojen.postman.co/workspace/Toby-vanRoojen's-Workspace~96882eaa-7ffb-4d80-8f7a-3f8592f4fdc7/collection/44511214-668efb75-2c6a-41de-af43-40b33cc118f5?action=share&source=collection_link&creator=44511214"
+	},
+	"item": [
+		{
+			"name": "1. (ANF Migration Assistant) Request and Store Token (Run Me First)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"",
+							"pm.test(\"Retrieving Token\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    //pm.expect(jsonData.value).to.eql(100);",
+							"    pm.globals.set(\"token\", jsonData.access_token);",
+							"});",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "client_credentials",
+							"type": "text"
+						},
+						{
+							"key": "client_id",
+							"value": "{{appId}}",
+							"type": "text"
+						},
+						{
+							"key": "client_secret",
+							"value": "{{appIdPassword}}",
+							"type": "text"
+						},
+						{
+							"key": "resource",
+							"value": "{{apicloudurl}}",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{authcloudurl}}/{{tenant}}/oauth2/token?api-version={{api-version}}",
+					"host": [
+						"{{authcloudurl}}"
+					],
+					"path": [
+						"{{tenant}}",
+						"oauth2",
+						"token"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Request an Azure API authentication token - valid for 1 hour. Sets a global variable (\"token\") that is used by the other API calls."
+			},
+			"response": []
+		},
+		{
+			"name": "1. (ANF Migration Assistant) Request and Store Token (Run Me First) Copy",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Retrieve Azure AD token\", function () {",
+							"    let jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property(\"access_token\");",
+							"    pm.globals.set(\"token\", jsonData.access_token);",
+							"    pm.globals.set(\"expires_in\", jsonData.expires_in);",
+							"});",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "client_credentials",
+							"type": "text"
+						},
+						{
+							"key": "client_id",
+							"value": "{{appId}}",
+							"type": "text"
+						},
+						{
+							"key": "client_secret",
+							"value": "{{appIdPassword}}",
+							"type": "text"
+						},
+						{
+							"key": "resource",
+							"value": "{{apicloudurl}}",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{authcloudurl}}/{{tenant}}/oauth2/token?api-version={{api-version}}",
+					"host": [
+						"{{authcloudurl}}"
+					],
+					"path": [
+						"{{tenant}}",
+						"oauth2",
+						"token"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Request an Azure API authentication token - valid for 1 hour. Sets a global variable (\"token\") that is used by the other API calls."
+			},
+			"response": []
+		},
+		{
+			"name": "2. (ANF Migration Assistant) Create Target Volume (NFSv3)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const chars = [...\"abcdefghijklmnopqrstuvwxyz\"];",
+							"// and then just do:",
+							"const volName = [...Array(4)].map(i=>chars[Math.random()*chars.length|0]).join``;",
+							"pm.globals.set(\"volume\", volName);"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{ \n   \"type\":\"Microsoft.NetApp/netAppAccounts/capacityPools/volumes\", \n   \"location\":\"{{location}}\", \n   \"properties\":{ \n      \"volumeType\":\"Migration\", \n      \"dataProtection\":{ \n         \"replication\":{ \n            \"endpointType\":\"Dst\", \n            \"replicationSchedule\":\"{{replicationSchedule}}\", \n            \"remotePath\":{ \n               \"externalHostName\":\"{{maexternalHostName}}\", \n               \"serverName\":\"{{maserverName}}\", \n               \"volumeName\":\"{{mavolumeName}}\" \n            } \n         } \n      }, \n      \"serviceLevel\":\"{{serviceLevel}}\", \n      \"throughputMibps\": \"{{volthroughputMibps}}\",        \n      \"creationToken\":\"{{volumeName}}\", \n      \"usageThreshold\":{{volusageThreshold}}, \n      \"exportPolicy\":{ \n         \"rules\":[ \n            { \n               \"ruleIndex\":1, \n               \"unixReadOnly\":false, \n               \"unixReadWrite\":true, \n               \"cifs\":false, \n               \"nfsv3\":true, \n               \"nfsv41\":false, \n               \"allowedClients\":\"0.0.0.0/0\", \n               \"kerberos5ReadOnly\":false, \n               \"kerberos5ReadWrite\":false, \n               \"kerberos5iReadOnly\":false,  \n               \"kerberos5iReadWrite\":false, \n               \"kerberos5pReadOnly\":false, \n               \"kerberos5pReadWrite\":false, \n               \"hasRootAccess\":true \n            } \n         ] \n      }, \n      \"protocolTypes\":[ \n         \"NFSv3\" \n      ], \n      \"subnetId\":\"{{volsubnetId}}\", \n      \"networkFeatures\":\"Standard\", \n      \"isLargeVolume\":\"{{isLargeVolume}}\" \n   } \n} "
+				},
+				"url": {
+					"raw": "{{apicloudurl}}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}?api-version={{api-version}}",
+					"host": [
+						"{{apicloudurl}}"
+					],
+					"path": [
+						"subscriptions",
+						"{{subscriptionId}}",
+						"resourceGroups",
+						"{{resourceGroupName}}",
+						"providers",
+						"Microsoft.NetApp",
+						"netAppAccounts",
+						"{{accountName}}",
+						"capacityPools",
+						"{{poolName}}",
+						"volumes",
+						"{{volumeName}}"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Create or update the specified volume within the capacity pool."
+			},
+			"response": []
+		},
+		{
+			"name": "2. (ANF Migration Assistant) Create Target Volume (NFSv3) Auto QoS",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const chars = [...\"abcdefghijklmnopqrstuvwxyz\"];",
+							"// and then just do:",
+							"const volName = [...Array(4)].map(i=>chars[Math.random()*chars.length|0]).join``;",
+							"pm.globals.set(\"volume\", volName);"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{ \n   \"type\":\"Microsoft.NetApp/netAppAccounts/capacityPools/volumes\", \n   \"location\":\"{{location}}\", \n   \"properties\":{ \n      \"volumeType\":\"Migration\", \n      \"dataProtection\":{ \n         \"replication\":{ \n            \"endpointType\":\"Dst\", \n            \"replicationSchedule\":\"{{replicationSchedule}}\", \n            \"remotePath\":{ \n               \"externalHostName\":\"{{maexternalHostName}}\", \n               \"serverName\":\"{{maserverName}}\", \n               \"volumeName\":\"{{mavolumeName}}\" \n            } \n         } \n      }, \n      \"serviceLevel\":\"{{serviceLevel}}\", \n      \"creationToken\":\"{{volumeName}}\", \n      \"usageThreshold\":{{volusageThreshold}}, \n      \"exportPolicy\":{ \n         \"rules\":[ \n            { \n               \"ruleIndex\":1, \n               \"unixReadOnly\":false, \n               \"unixReadWrite\":true, \n               \"cifs\":false, \n               \"nfsv3\":true, \n               \"nfsv41\":false, \n               \"allowedClients\":\"0.0.0.0/0\", \n               \"kerberos5ReadOnly\":false, \n               \"kerberos5ReadWrite\":false, \n               \"kerberos5iReadOnly\":false,  \n               \"kerberos5iReadWrite\":false, \n               \"kerberos5pReadOnly\":false, \n               \"kerberos5pReadWrite\":false, \n               \"hasRootAccess\":true \n            } \n         ] \n      }, \n      \"protocolTypes\":[ \n         \"NFSv3\" \n      ], \n      \"subnetId\":\"{{volsubnetId}}\", \n      \"networkFeatures\":\"Standard\", \n      \"isLargeVolume\":\"{{isLargeVolume}}\" \n   } \n} "
+				},
+				"url": {
+					"raw": "{{apicloudurl}}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}?api-version={{api-version}}",
+					"host": [
+						"{{apicloudurl}}"
+					],
+					"path": [
+						"subscriptions",
+						"{{subscriptionId}}",
+						"resourceGroups",
+						"{{resourceGroupName}}",
+						"providers",
+						"Microsoft.NetApp",
+						"netAppAccounts",
+						"{{accountName}}",
+						"capacityPools",
+						"{{poolName}}",
+						"volumes",
+						"{{volumeName}}"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Create or update the specified volume within the capacity pool."
+			},
+			"response": []
+		},
+		{
+			"name": "2. (ANF Migration Assistant) Create Target Volume (SMB)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const chars = [...\"abcdefghijklmnopqrstuvwxyz\"];",
+							"// and then just do:",
+							"const volName = [...Array(4)].map(i=>chars[Math.random()*chars.length|0]).join``;",
+							"pm.globals.set(\"volume\", volName);"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"type\": \"Microsoft.NetApp/netAppAccounts/capacityPools/volumes\",\n    \"location\": \"{{location}}\",\n    \"properties\": {\n        \"volumeType\": \"Migration\",\n        \"dataProtection\": {\n            \"replication\": {\n                \"endpointType\": \"Dst\",\n                \"replicationSchedule\": \"{{replicationSchedule}}\",\n                \"remotePath\": {\n                    \"externalHostName\": \"{{maexternalHostName}}\",\n                    \"serverName\": \"{{maserverName}}\",\n                    \"volumeName\": \"{{mavolumeName}}\"\n                }\n            }\n        },\n        \"serviceLevel\": \"{{serviceLevel}}\",\n        \"throughputMibps\": \"{{volthroughputMibps}}\",        \n        \"creationToken\": \"{{volumeName}}\",\n        \"usageThreshold\": \"{{volusageThreshold}}\",\n        \"exportPolicy\": {\n            \"rules\": []\n        },\n        \"protocolTypes\": [\n            \"CIFS\"\n        ],\n        \"subnetId\": \"{{volsubnetId}}\",\n        \"networkFeatures\": \"Standard\",\n        \"isLargeVolume\": \"{{isLargeVolume}}\"\n    }\n}"
+				},
+				"url": {
+					"raw": "{{apicloudurl}}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}?api-version={{api-version}}",
+					"host": [
+						"{{apicloudurl}}"
+					],
+					"path": [
+						"subscriptions",
+						"{{subscriptionId}}",
+						"resourceGroups",
+						"{{resourceGroupName}}",
+						"providers",
+						"Microsoft.NetApp",
+						"netAppAccounts",
+						"{{accountName}}",
+						"capacityPools",
+						"{{poolName}}",
+						"volumes",
+						"{{volumeName}}"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Create or update the specified volume within the capacity pool."
+			},
+			"response": []
+		},
+		{
+			"name": "2. (ANF Migration Assistant) Create Target Volume (SMB) Auto QoS",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const chars = [...\"abcdefghijklmnopqrstuvwxyz\"];",
+							"// and then just do:",
+							"const volName = [...Array(4)].map(i=>chars[Math.random()*chars.length|0]).join``;",
+							"pm.globals.set(\"volume\", volName);"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"type\": \"Microsoft.NetApp/netAppAccounts/capacityPools/volumes\",\n    \"location\": \"{{location}}\",\n    \"properties\": {\n        \"volumeType\": \"Migration\",\n        \"dataProtection\": {\n            \"replication\": {\n                \"endpointType\": \"Dst\",\n                \"replicationSchedule\": \"{{replicationSchedule}}\",\n                \"remotePath\": {\n                    \"externalHostName\": \"{{maexternalHostName}}\",\n                    \"serverName\": \"{{maserverName}}\",\n                    \"volumeName\": \"{{mavolumeName}}\"\n                }\n            }\n        },\n        \"serviceLevel\": \"{{serviceLevel}}\",\n        \"creationToken\": \"{{volumeName}}\",\n        \"usageThreshold\": \"{{volusageThreshold}}\",\n        \"exportPolicy\": {\n            \"rules\": []\n        },\n        \"protocolTypes\": [\n            \"CIFS\"\n        ],\n        \"subnetId\": \"{{volsubnetId}}\",\n        \"networkFeatures\": \"Standard\",\n        \"isLargeVolume\": \"{{isLargeVolume}}\"\n    }\n}"
+				},
+				"url": {
+					"raw": "{{apicloudurl}}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}?api-version={{api-version}}",
+					"host": [
+						"{{apicloudurl}}"
+					],
+					"path": [
+						"subscriptions",
+						"{{subscriptionId}}",
+						"resourceGroups",
+						"{{resourceGroupName}}",
+						"providers",
+						"Microsoft.NetApp",
+						"netAppAccounts",
+						"{{accountName}}",
+						"capacityPools",
+						"{{poolName}}",
+						"volumes",
+						"{{volumeName}}"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Create or update the specified volume within the capacity pool."
+			},
+			"response": []
+		},
+		{
+			"name": "3. (ANF Migration Assistant) Issue Cluster Peer Request",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{ \r\n   \"PeerClusterName\":\"{{maclusterName}}\", \r\n   \"PeerAddresses\":[ \r\n{{mapeerAddresses}}\r\n   ] \r\n} "
+				},
+				"url": {
+					"raw": "{{apicloudurl}}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/peerExternalCluster?api-version={{api-version}}",
+					"host": [
+						"{{apicloudurl}}"
+					],
+					"path": [
+						"subscriptions",
+						"{{subscriptionId}}",
+						"resourceGroups",
+						"{{resourceGroupName}}",
+						"providers",
+						"Microsoft.NetApp",
+						"netAppAccounts",
+						"{{accountName}}",
+						"capacityPools",
+						"{{poolName}}",
+						"volumes",
+						"{{volumeName}}",
+						"peerExternalCluster"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Issue a cluster peer request for external replication."
+			},
+			"response": []
+		},
+		{
+			"name": "4. (ANF Migration Assistant) Accept Peer Request",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://management.azure.com/subscriptions/c560a042-4311-40cf-beb5-edc67991179e/providers/Microsoft.NetApp/locations/southcentralus/operationResults/efc936d1-da89-45a7-a377-66044f98213a?api-version=2025-06-01&t=638932176861582768&c=MIIIpTCCBo2gAwIBAgITFgGsmnj73LBE7PaBtQABAayaeDANBgkqhkiG9w0BAQsFADBEMRMwEQYKCZImiZPyLGQBGRYDR0JMMRMwEQYKCZImiZPyLGQBGRYDQU1FMRgwFgYDVQQDEw9BTUUgSW5mcmEgQ0EgMDMwHhcNMjUwNzE4MTIwNDI4WhcNMjYwMTE0MTIwNDI4WjBAMT4wPAYDVQQDEzVhc3luY29wZXJhdGlvbnNpZ25pbmdjZXJ0aWZpY2F0ZS5tYW5hZ2VtZW50LmF6dXJlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKYwXiklImL5-WfPWj2FX3_Y-JxCd3XXEOuNXx5ggHubZZamujLTqEBSFsFYiH_9NCaqKTiATXu6fBpzW3ghgYhwr0PL071fQT15KnnNUFjd5hFXB7SYti9IwWu1lxSAz-De7HivujKdlsgcmfoV6upRQ0eva9e74EwLV9pCn4WQAhs-6T8p0CytQsi81qHMWybAbNvfom0ox78IEWdS_6g_d4Jl_I4ccYLMyRTOV2NioM96cRECWCZhbpLl1zwoYGSbU5H0MZaiCBjPlhXN40BqagpamZfP98sPYSBfreh6-iMGU5tNTRkh8RiJqzjhzIUpEv3PqLtWTyPUB8JS7aUCAwEAAaOCBJIwggSOMCcGCSsGAQQBgjcVCgQaMBgwCgYIKwYBBQUHAwEwCgYIKwYBBQUHAwIwPQYJKwYBBAGCNxUHBDAwLgYmKwYBBAGCNxUIhpDjDYTVtHiE8Ys-hZvdFs6dEoFghfmRS4WsmTQCAWQCAQcwggHaBggrBgEFBQcBAQSCAcwwggHIMGYGCCsGAQUFBzAChlpodHRwOi8vY3JsLm1pY3Jvc29mdC5jb20vcGtpaW5mcmEvQ2VydHMvQU0zUEtJSU5UQ0EwMS5BTUUuR0JMX0FNRSUyMEluZnJhJTIwQ0ElMjAwMygxKS5jcnQwVgYIKwYBBQUHMAKGSmh0dHA6Ly9jcmwxLmFtZS5nYmwvYWlhL0FNM1BLSUlOVENBMDEuQU1FLkdCTF9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3J0MFYGCCsGAQUFBzAChkpodHRwOi8vY3JsMi5hbWUuZ2JsL2FpYS9BTTNQS0lJTlRDQTAxLkFNRS5HQkxfQU1FJTIwSW5mcmElMjBDQSUyMDAzKDEpLmNydDBWBggrBgEFBQcwAoZKaHR0cDovL2NybDMuYW1lLmdibC9haWEvQU0zUEtJSU5UQ0EwMS5BTUUuR0JMX0FNRSUyMEluZnJhJTIwQ0ElMjAwMygxKS5jcnQwVgYIKwYBBQUHMAKGSmh0dHA6Ly9jcmw0LmFtZS5nYmwvYWlhL0FNM1BLSUlOVENBMDEuQU1FLkdCTF9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3J0MB0GA1UdDgQWBBTxzPCXgPzIUiTz94us0y0CCMf8BzAOBgNVHQ8BAf8EBAMCBaAwggE1BgNVHR8EggEsMIIBKDCCASSgggEgoIIBHIZCaHR0cDovL2NybC5taWNyb3NvZnQuY29tL3BraWluZnJhL0NSTC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JshjRodHRwOi8vY3JsMS5hbWUuZ2JsL2NybC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JshjRodHRwOi8vY3JsMi5hbWUuZ2JsL2NybC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JshjRodHRwOi8vY3JsMy5hbWUuZ2JsL2NybC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JshjRodHRwOi8vY3JsNC5hbWUuZ2JsL2NybC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JsMIGdBgNVHSAEgZUwgZIwDAYKKwYBBAGCN3sBATBmBgorBgEEAYI3ewICMFgwVgYIKwYBBQUHAgIwSh5IADMAMwBlADAAMQA5ADIAMQAtADQAZAA2ADQALQA0AGYAOABjAC0AYQAwADUANQAtADUAYgBkAGEAZgBmAGQANQBlADMAMwBkMAwGCisGAQQBgjd7AwIwDAYKKwYBBAGCN3sEAjAfBgNVHSMEGDAWgBRIo61gdWpv7GDzaVXRALEyV_xs5DAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDQYJKoZIhvcNAQELBQADggIBAAqNK9Ejzdnb9L4TyakCpJByRYVTN_6nCGbtUd2E2sELjuJGRGiRmujp_jqNyIofO_ghSaP_tqH-3WRTRUbnt5xM8aBYoYJSOgKgTsNrB6clspdhCCmzhJy6EQuOqfUDm3C7hDru1_bN3DwXt3VpDqfuYtM3MAabKg0oCYVWgFwnAKYmZLZMWMQh7k_hZxy1gOCQmE9U08tf_pU21aI0El6n5A5uG2FT0placwchheFmXAtoPjT7nU53HVmRissxUR_vRCDj_ZCFo3K3nZNXCQOKPAMc9-LC0prb9Slg6siKtSHB3iGjNQlT9-nbSnDgifI8zC1cvT8CdaNLOmUywRIB4wvRn1z123NuyfJaIz95igW9P189vBTJEZREF-MgJEboWKdlGNn6bbBtu0waqAmUU7WVLeZKdtUI6EEKF7wRGYuY_BhZx1ipyXnBHZpsufuH4AwgOO289QKmqg8QAy7HFD9c8H8fNCtR7sTZ4YNP2AhEaES0rkMSQUCNVEz42YEBi2GgrSpnI94SPdb3J3PkCMZ4OgFRjztLO7nrgbPtflhSOo_VOE0_7Y74km43WAMQPKL3-44vQrEQ61Hd_24IcFh_ChNXvUDqp39GzYlO3D0zlau4ozll8BeLUZrJwHTQWZS8XR-EifCl4MW5Y3Y1SxOLrIxnukCzQxL7aGmc&s=VzJoLBbbbt5A-LAPUBeLt-jk4HbWo5cJpELDd9TZ8QoKt08BcZusIMFmxEc_OyLItN5cG9VMqn929Z2HHDsmhetIkM9FveBr5W5Pg4_YOmBXsdfTUCHhx9kglQs5QBGlL77hJQnFfOyr_G1AHp5XJtqUTQ7GVoV8Ve_BqL34Imtfyl-q_Dh_SDeFvwaeEcFjn6ZMq1D_zSr76VWdtWh9T_JUBqpads_FK89kaa6EkNYNsXGkqw4dfgKFKic3WhsKiQUUN6ukzogj1ido-HAix1WAXPrHiY4hlDZmFhTSQbnK7b7Mk-K1KJSkJoR8P57oQDNdr8xIvkjq4-rJLHnrXw&h=YrPV4L4_2S38WMcQzIXxwBfIlRuQTYoVT90Y9NpdRT8\n",
+					"protocol": "https",
+					"host": [
+						"management",
+						"azure",
+						"com"
+					],
+					"path": [
+						"subscriptions",
+						"c560a042-4311-40cf-beb5-edc67991179e",
+						"providers",
+						"Microsoft.NetApp",
+						"locations",
+						"southcentralus",
+						"operationResults",
+						"efc936d1-da89-45a7-a377-66044f98213a"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "2025-06-01"
+						},
+						{
+							"key": "t",
+							"value": "638932176861582768"
+						},
+						{
+							"key": "c",
+							"value": "MIIIpTCCBo2gAwIBAgITFgGsmnj73LBE7PaBtQABAayaeDANBgkqhkiG9w0BAQsFADBEMRMwEQYKCZImiZPyLGQBGRYDR0JMMRMwEQYKCZImiZPyLGQBGRYDQU1FMRgwFgYDVQQDEw9BTUUgSW5mcmEgQ0EgMDMwHhcNMjUwNzE4MTIwNDI4WhcNMjYwMTE0MTIwNDI4WjBAMT4wPAYDVQQDEzVhc3luY29wZXJhdGlvbnNpZ25pbmdjZXJ0aWZpY2F0ZS5tYW5hZ2VtZW50LmF6dXJlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKYwXiklImL5-WfPWj2FX3_Y-JxCd3XXEOuNXx5ggHubZZamujLTqEBSFsFYiH_9NCaqKTiATXu6fBpzW3ghgYhwr0PL071fQT15KnnNUFjd5hFXB7SYti9IwWu1lxSAz-De7HivujKdlsgcmfoV6upRQ0eva9e74EwLV9pCn4WQAhs-6T8p0CytQsi81qHMWybAbNvfom0ox78IEWdS_6g_d4Jl_I4ccYLMyRTOV2NioM96cRECWCZhbpLl1zwoYGSbU5H0MZaiCBjPlhXN40BqagpamZfP98sPYSBfreh6-iMGU5tNTRkh8RiJqzjhzIUpEv3PqLtWTyPUB8JS7aUCAwEAAaOCBJIwggSOMCcGCSsGAQQBgjcVCgQaMBgwCgYIKwYBBQUHAwEwCgYIKwYBBQUHAwIwPQYJKwYBBAGCNxUHBDAwLgYmKwYBBAGCNxUIhpDjDYTVtHiE8Ys-hZvdFs6dEoFghfmRS4WsmTQCAWQCAQcwggHaBggrBgEFBQcBAQSCAcwwggHIMGYGCCsGAQUFBzAChlpodHRwOi8vY3JsLm1pY3Jvc29mdC5jb20vcGtpaW5mcmEvQ2VydHMvQU0zUEtJSU5UQ0EwMS5BTUUuR0JMX0FNRSUyMEluZnJhJTIwQ0ElMjAwMygxKS5jcnQwVgYIKwYBBQUHMAKGSmh0dHA6Ly9jcmwxLmFtZS5nYmwvYWlhL0FNM1BLSUlOVENBMDEuQU1FLkdCTF9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3J0MFYGCCsGAQUFBzAChkpodHRwOi8vY3JsMi5hbWUuZ2JsL2FpYS9BTTNQS0lJTlRDQTAxLkFNRS5HQkxfQU1FJTIwSW5mcmElMjBDQSUyMDAzKDEpLmNydDBWBggrBgEFBQcwAoZKaHR0cDovL2NybDMuYW1lLmdibC9haWEvQU0zUEtJSU5UQ0EwMS5BTUUuR0JMX0FNRSUyMEluZnJhJTIwQ0ElMjAwMygxKS5jcnQwVgYIKwYBBQUHMAKGSmh0dHA6Ly9jcmw0LmFtZS5nYmwvYWlhL0FNM1BLSUlOVENBMDEuQU1FLkdCTF9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3J0MB0GA1UdDgQWBBTxzPCXgPzIUiTz94us0y0CCMf8BzAOBgNVHQ8BAf8EBAMCBaAwggE1BgNVHR8EggEsMIIBKDCCASSgggEgoIIBHIZCaHR0cDovL2NybC5taWNyb3NvZnQuY29tL3BraWluZnJhL0NSTC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JshjRodHRwOi8vY3JsMS5hbWUuZ2JsL2NybC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JshjRodHRwOi8vY3JsMi5hbWUuZ2JsL2NybC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JshjRodHRwOi8vY3JsMy5hbWUuZ2JsL2NybC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JshjRodHRwOi8vY3JsNC5hbWUuZ2JsL2NybC9BTUUlMjBJbmZyYSUyMENBJTIwMDMoMSkuY3JsMIGdBgNVHSAEgZUwgZIwDAYKKwYBBAGCN3sBATBmBgorBgEEAYI3ewICMFgwVgYIKwYBBQUHAgIwSh5IADMAMwBlADAAMQA5ADIAMQAtADQAZAA2ADQALQA0AGYAOABjAC0AYQAwADUANQAtADUAYgBkAGEAZgBmAGQANQBlADMAMwBkMAwGCisGAQQBgjd7AwIwDAYKKwYBBAGCN3sEAjAfBgNVHSMEGDAWgBRIo61gdWpv7GDzaVXRALEyV_xs5DAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDQYJKoZIhvcNAQELBQADggIBAAqNK9Ejzdnb9L4TyakCpJByRYVTN_6nCGbtUd2E2sELjuJGRGiRmujp_jqNyIofO_ghSaP_tqH-3WRTRUbnt5xM8aBYoYJSOgKgTsNrB6clspdhCCmzhJy6EQuOqfUDm3C7hDru1_bN3DwXt3VpDqfuYtM3MAabKg0oCYVWgFwnAKYmZLZMWMQh7k_hZxy1gOCQmE9U08tf_pU21aI0El6n5A5uG2FT0placwchheFmXAtoPjT7nU53HVmRissxUR_vRCDj_ZCFo3K3nZNXCQOKPAMc9-LC0prb9Slg6siKtSHB3iGjNQlT9-nbSnDgifI8zC1cvT8CdaNLOmUywRIB4wvRn1z123NuyfJaIz95igW9P189vBTJEZREF-MgJEboWKdlGNn6bbBtu0waqAmUU7WVLeZKdtUI6EEKF7wRGYuY_BhZx1ipyXnBHZpsufuH4AwgOO289QKmqg8QAy7HFD9c8H8fNCtR7sTZ4YNP2AhEaES0rkMSQUCNVEz42YEBi2GgrSpnI94SPdb3J3PkCMZ4OgFRjztLO7nrgbPtflhSOo_VOE0_7Y74km43WAMQPKL3-44vQrEQ61Hd_24IcFh_ChNXvUDqp39GzYlO3D0zlau4ozll8BeLUZrJwHTQWZS8XR-EifCl4MW5Y3Y1SxOLrIxnukCzQxL7aGmc"
+						},
+						{
+							"key": "s",
+							"value": "VzJoLBbbbt5A-LAPUBeLt-jk4HbWo5cJpELDd9TZ8QoKt08BcZusIMFmxEc_OyLItN5cG9VMqn929Z2HHDsmhetIkM9FveBr5W5Pg4_YOmBXsdfTUCHhx9kglQs5QBGlL77hJQnFfOyr_G1AHp5XJtqUTQ7GVoV8Ve_BqL34Imtfyl-q_Dh_SDeFvwaeEcFjn6ZMq1D_zSr76VWdtWh9T_JUBqpads_FK89kaa6EkNYNsXGkqw4dfgKFKic3WhsKiQUUN6ukzogj1ido-HAix1WAXPrHiY4hlDZmFhTSQbnK7b7Mk-K1KJSkJoR8P57oQDNdr8xIvkjq4-rJLHnrXw"
+						},
+						{
+							"key": "h",
+							"value": "YrPV4L4_2S38WMcQzIXxwBfIlRuQTYoVT90Y9NpdRT8\n"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. (ANF Migration Assistant) Authorize External Replication",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{apicloudurl}}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/authorizeExternalReplication?api-version={{api-version}}",
+					"host": [
+						"{{apicloudurl}}"
+					],
+					"path": [
+						"subscriptions",
+						"{{subscriptionId}}",
+						"resourceGroups",
+						"{{resourceGroupName}}",
+						"providers",
+						"Microsoft.NetApp",
+						"netAppAccounts",
+						"{{accountName}}",
+						"capacityPools",
+						"{{poolName}}",
+						"volumes",
+						"{{volumeName}}",
+						"authorizeExternalReplication"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Request an Azure API authentication token - valid for 1 hour. Sets a global variable (\"token\") that is used by the other API calls."
+			},
+			"response": []
+		},
+		{
+			"name": "6. (ANF Migration Assistant) Issue Re-Sync Request",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{apicloudurl}}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/performReplicationTransfer?api-version={{api-version}}",
+					"host": [
+						"{{apicloudurl}}"
+					],
+					"path": [
+						"subscriptions",
+						"{{subscriptionId}}",
+						"resourceGroups",
+						"{{resourceGroupName}}",
+						"providers",
+						"Microsoft.NetApp",
+						"netAppAccounts",
+						"{{accountName}}",
+						"capacityPools",
+						"{{poolName}}",
+						"volumes",
+						"{{volumeName}}",
+						"performReplicationTransfer"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Request an Azure API authentication token - valid for 1 hour. Sets a global variable (\"token\") that is used by the other API calls."
+			},
+			"response": []
+		},
+		{
+			"name": "7. (ANF Migration Assistant) Issue Break Relationship Request",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": []
+				},
+				"url": {
+					"raw": "{{apicloudurl}}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/breakReplication?api-version={{api-version}}",
+					"host": [
+						"{{apicloudurl}}"
+					],
+					"path": [
+						"subscriptions",
+						"{{subscriptionId}}",
+						"resourceGroups",
+						"{{resourceGroupName}}",
+						"providers",
+						"Microsoft.NetApp",
+						"netAppAccounts",
+						"{{accountName}}",
+						"capacityPools",
+						"{{poolName}}",
+						"volumes",
+						"{{volumeName}}",
+						"breakReplication"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Request an Azure API authentication token - valid for 1 hour. Sets a global variable (\"token\") that is used by the other API calls."
+			},
+			"response": []
+		},
+		{
+			"name": "8. (ANF Migration Assistant) Issue Finalize External Replication",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{apicloudurl}}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}/providers/Microsoft.NetApp/netAppAccounts/{{accountName}}/capacityPools/{{poolName}}/volumes/{{volumeName}}/finalizeExternalReplication?api-version={{api-version}}",
+					"host": [
+						"{{apicloudurl}}"
+					],
+					"path": [
+						"subscriptions",
+						"{{subscriptionId}}",
+						"resourceGroups",
+						"{{resourceGroupName}}",
+						"providers",
+						"Microsoft.NetApp",
+						"netAppAccounts",
+						"{{accountName}}",
+						"capacityPools",
+						"{{poolName}}",
+						"volumes",
+						"{{volumeName}}",
+						"finalizeExternalReplication"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "{{api-version}}"
+						}
+					]
+				},
+				"description": "Request an Azure API authentication token - valid for 1 hour. Sets a global variable (\"token\") that is used by the other API calls."
+			},
+			"response": []
+		},
+		{
+			"name": "(ANF Migration Assistant) Get Operations Result",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{maAzure-AsyncOperationID}}",
+					"host": [
+						"{{maAzure-AsyncOperationID}}"
+					]
+				},
+				"description": "Retrieve the result of an asynchronous operation for Azure NetApp Files using the Azure-AsyncOperation URL."
+			},
+			"response": []
+		}
+	]
+}
