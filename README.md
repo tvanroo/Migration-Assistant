@@ -4,7 +4,29 @@
 
 A command-line tool for managing Azure NetApp Files migration workflows with robust variable management and conditional logic.
 
-## 🚀 Quick Start
+## � Requirements
+
+### System Requirements
+- **Python 3.6+** (recommended: Python 3.7+)
+- **curl** - For API calls
+- **bash** - Shell environment
+
+### Python Dependencies
+```bash
+# Install required Python package
+pip install PyYAML
+```
+
+### Verification
+```bash
+# Check Python version (requires 3.6+)
+python3 --version
+
+# Test dependencies
+python3 -c "import yaml, json, sys; print('✅ All dependencies available')"
+```
+
+## �🚀 Quick Start
 
 ### 1. Interactive Setup
 Configure your migration settings using the interactive wizard:
