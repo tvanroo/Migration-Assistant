@@ -59,9 +59,10 @@ function Get-ConfigValue {
     
     $pythonCmd = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" } else { "python" }
     
+    $configPath = $ConfigFile.Replace('\', '/')
     $pythonScript = @"
 import yaml
-with open('$($ConfigFile.Replace('\', '/'))') as f:
+with open('$configPath') as f:
     config = yaml.safe_load(f)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     print(all_vars.get('$Key', ''))
@@ -111,9 +112,10 @@ function Expand-ConfigVariables {
     
     $pythonCmd = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" } else { "python" }
     
+    $configPath = $ConfigFile.Replace('\', '/')
     $pythonScript = @"
 import sys, yaml
-with open('$($ConfigFile.Replace('\', '/'))') as f:
+with open('$configPath') as f:
     config = yaml.safe_load(f)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
