@@ -172,9 +172,19 @@ print(data, end='')
             --data "$data" \
             "$full_url" || error_exit "API call failed: $step_name"
     else
-        curl -s -X "$method" \
-            -H "Authorization: Bearer $token" \
-            "$full_url" || error_exit "API call failed: $step_name"
+        # For POST requests without data, we still need to include Content-Type and Content-Length headers
+        if [[ "$method" == "POST" || "$method" == "PUT" || "$method" == "PATCH" ]]; then
+            curl -s -X "$method" \
+                -H "Authorization: Bearer $token" \
+                -H "Content-Type: application/json" \
+                -H "Content-Length: 0" \
+                --data "" \
+                "$full_url" || error_exit "API call failed: $step_name"
+        else
+            curl -s -X "$method" \
+                -H "Authorization: Bearer $token" \
+                "$full_url" || error_exit "API call failed: $step_name"
+        fi
     fi
     
     success "Completed: $step_name"

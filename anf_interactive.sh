@@ -233,10 +233,21 @@ except:
             --data "$data" \
             "$full_url")
     else
-        http_status=$(curl -s -w "%{http_code}" -o "$response_file" -D "$headers_file" \
-            -X "$method" \
-            -H "Authorization: Bearer $token" \
-            "$full_url")
+        # For POST requests without data, we still need to include Content-Type and Content-Length headers
+        if [[ "$method" == "POST" || "$method" == "PUT" || "$method" == "PATCH" ]]; then
+            http_status=$(curl -s -w "%{http_code}" -o "$response_file" -D "$headers_file" \
+                -X "$method" \
+                -H "Authorization: Bearer $token" \
+                -H "Content-Type: application/json" \
+                -H "Content-Length: 0" \
+                --data "" \
+                "$full_url")
+        else
+            http_status=$(curl -s -w "%{http_code}" -o "$response_file" -D "$headers_file" \
+                -X "$method" \
+                -H "Authorization: Bearer $token" \
+                "$full_url")
+        fi
     fi
     
     # Log full request/response
