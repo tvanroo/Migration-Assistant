@@ -1445,10 +1445,24 @@ check_dependencies() {
     success "Dependencies check passed"
 }
 
+# Validate configuration
+validate_config() {
+    info "Validating configuration..."
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        error_exit "Configuration file $CONFIG_FILE not found"
+    fi
+    
+    # Validation passed - show current config
+    success "Configuration is valid"
+    echo ""
+    ./anf_workflow.sh config
+}
+
 # Main interactive workflow
 run_interactive_workflow() {
     check_dependencies
-    parse_config
+    validate_config
     
     local protocol=$(get_protocol)
     local qos=$(get_qos)
