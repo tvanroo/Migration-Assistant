@@ -1195,6 +1195,298 @@ run_interactive_workflow() {
     done
     
     export ANF_MONITORING_MODE="$monitoring_mode"
+}
+
+# Function to get cluster peer request result and extract cluster peering command
+get_cluster_peer_result() {
+    step_header "Step: get_cluster_peer_result"
+    
+    if ! confirm_step "get_cluster_peer_result" "Get cluster peer result to retrieve cluster peering command and passphrase"; then
+        return 0  # Step was skipped
+    fi
+    
+    info "Getting cluster peer result from peer_request step..."
+    
+    # Get the async operation result similar to SVM peering
+    if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
+        local operation_id
+        if operation_id=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
+import json, sys, re
+try:
+    data = json.load(sys.stdin)
+    name = data.get('name', '')
+    if name:
+        print(name)
+    else:
+        # Try to extract from ID field
+        id_field = data.get('id', '')
+        match = re.search(r'operationResults/([^/]+)', id_field)
+        if match:
+            print(match.group(1))
+        else:
+            sys.exit(1)
+except:
+    sys.exit(1)
+" 2>/dev/null); then
+            
+            local location=$(get_config_value 'target_location')
+            local subscription_id=$(get_config_value 'azure_subscription_id')
+            local operation_result_url="/subscriptions/${subscription_id}/providers/Microsoft.NetApp/locations/${location}/operationResults/${operation_id}"
+            
+            info "Using operation ID: $operation_id"
+            
+            # Make the API call to get operation results
+            execute_api_call "get_cluster_peer_operation_result" "GET" \
+                "$operation_result_url" \
+                "" \
+                "Get cluster peer async operation result with peering command" \
+                "200"
+        else
+            warning "Could not extract operation ID from async response"
+        fi
+    else
+        warning "No async response data available from peer_request step"
+    fi
+    
+    # After the API call, try to extract the cluster peering command and passphrase
+    echo ""
+    if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
+        local peer_command
+        local passphrase
+        
+        peer_command=$(get_async_response_field "properties.peerAcceptCommand" 2>/dev/null)
+        passphrase=$(get_async_response_field "properties.passphrase" 2>/dev/null)
+        
+        if [[ -n "$peer_command" && -n "$passphrase" ]]; then
+            echo ""
+            echo -e "${GREEN}✅ Cluster Peer Command Retrieved:${NC}"
+            echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║ EXECUTE THIS COMMAND ON YOUR ON-PREMISES ONTAP SYSTEM:                      ║${NC}"
+            echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+            echo ""
+            
+            # Display the command with placeholders intact
+            echo -e "${YELLOW}$peer_command${NC}"
+            echo ""
+            echo -e "${GREEN}📋 Passphrase:${NC}"
+            echo -e "${YELLOW}$passphrase${NC}"
+            echo ""
+            echo -e "${BLUE}📋 Configuration Reference Values:${NC}"
+            local source_peer_addresses=$(get_config_value 'source_peer_addresses')
+            echo -e "${CYAN}  IP-SPACE-NAME: Default (or your custom IP space name)${NC}"
+            echo -e "${CYAN}  peer-addresses-list: $source_peer_addresses${NC}"
+            echo ""
+            echo -e "${CYAN}📝 Instructions:${NC}"
+            echo "  1. Log into your on-premises ONTAP system as an administrator"
+            echo "  2. Replace the placeholders in the command with your actual values:"
+            echo "     - Replace <IP-SPACE-NAME> with your IP space (usually 'Default')"
+            echo "     - Replace <peer-addresses-list> with the peer addresses shown above"
+            echo "  3. Execute the modified command"
+            echo "  4. When prompted, enter the passphrase: $passphrase"
+            echo "  5. Verify the command completes successfully"
+            echo "  6. Return here and confirm completion"
+            echo ""
+            
+            # Wait for user confirmation
+            while true; do
+                if ask_user_choice "Have you successfully executed the cluster peer command on your ONTAP system?" "n"; then
+                    success "Cluster peer command execution confirmed"
+                    break
+                else
+                    echo ""
+                    echo -e "${YELLOW}Please execute this cluster peer command on your ONTAP system:${NC}"
+                    echo -e "${YELLOW}$peer_command${NC}"
+                    echo -e "${YELLOW}Passphrase: $passphrase${NC}"
+                    echo -e "${CYAN}Reference - peer addresses: $source_peer_addresses${NC}"
+                    echo ""
+                    echo "The migration cannot proceed until this command is executed successfully."
+                    echo ""
+                    if ask_user_choice "Do you want to skip this step? (NOT RECOMMENDED - may cause migration failure)" "n"; then
+                        warning "Cluster peer step skipped by user - migration may fail"
+                        break
+                    fi
+                fi
+            done
+        else
+            warning "Cluster peer command or passphrase not found in operation result"
+            if [[ -n "$peer_command" ]]; then
+                echo "Found command: $peer_command"
+            fi
+            if [[ -n "$passphrase" ]]; then
+                echo "Found passphrase: $passphrase"
+            fi
+            info "Please check the Azure portal for the peering command and passphrase"
+        fi
+    fi
+}
+
+# Function to get async operation result and extract SVM peering command
+get_async_operation_result() {
+    step_header "Step: get_async_operation_result"
+    
+    if ! confirm_step "get_async_operation_result" "Get async operation result to retrieve SVM peering command"; then
+        return 0  # Step was skipped
+    fi
+    
+    info "Getting async operation result from authorize_replication step..."
+    
+    # First try to get the async operation URL from the previous step
+    if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
+        # Extract the operation ID from the async response or use the async URL directly
+        local operation_result_url
+        
+        # Try to extract operation ID and build the operationResults URL
+        local operation_id
+        if operation_id=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
+import json, sys, re
+try:
+    data = json.load(sys.stdin)
+    name = data.get('name', '')
+    if name:
+        print(name)
+    else:
+        # Try to extract from ID field
+        id_field = data.get('id', '')
+        match = re.search(r'operationResults/([^/]+)', id_field)
+        if match:
+            print(match.group(1))
+        else:
+            sys.exit(1)
+except:
+    sys.exit(1)
+" 2>/dev/null); then
+            
+            local location=$(get_config_value 'target_location')
+            local subscription_id=$(get_config_value 'azure_subscription_id')
+            operation_result_url="/subscriptions/${subscription_id}/providers/Microsoft.NetApp/locations/${location}/operationResults/${operation_id}"
+            
+            info "Using operation ID: $operation_id"
+            
+            # Make the API call to get operation results
+            execute_api_call "get_operation_result" "GET" \
+                "$operation_result_url" \
+                "" \
+                "Get async operation result with SVM peering command" \
+                "200"
+        else
+            warning "Could not extract operation ID from async response"
+            info "Async response data available, but operation ID not found"
+        fi
+    else
+        warning "No async response data available from authorize_replication step"
+        info "This could happen if:"
+        echo "  - The authorize_replication step was skipped"
+        echo "  - Async monitoring was disabled"
+        echo "  - The operation completed too quickly"
+    fi
+    
+    # After the API call, try to extract the SVM peering command from the new response
+    echo ""
+    if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
+        local svm_command
+        if svm_command=$(get_async_response_field "properties.svmPeeringCommand" 2>/dev/null); then
+            echo ""
+            echo -e "${GREEN}✅ SVM Peering Command Retrieved:${NC}"
+            echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+            echo -e "${CYAN}║ EXECUTE THIS COMMAND ON YOUR ON-PREMISES ONTAP SYSTEM:                      ║${NC}"
+            echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+            echo ""
+            echo -e "${YELLOW}$svm_command${NC}"
+            echo ""
+            echo -e "${BLUE}📋 Configuration Reference Values:${NC}"
+            local source_svm_name=$(get_config_value 'source_svm_name')
+            local target_svm_name=$(get_config_value 'target_svm_name')
+            echo -e "${CYAN}  on-prem-svm-name: $source_svm_name${NC}"
+            echo -e "${CYAN}  destination-svm-name: $target_svm_name${NC}"
+            echo ""
+            echo -e "${CYAN}📝 Instructions:${NC}"
+            echo "  1. Log into your on-premises ONTAP system as an administrator"
+            echo "  2. Replace the placeholders in the command with your actual values:"
+            echo "     - Replace placeholders with the SVM names shown above"
+            echo "  3. Execute the modified command"
+            echo "  4. Verify the command completes successfully"
+            echo "  5. Return here and confirm completion"
+            echo ""
+            
+            # Wait for user confirmation
+            while true; do
+                if ask_user_choice "Have you successfully executed the SVM peering command on your ONTAP system?" "n"; then
+                    success "SVM peering command execution confirmed"
+                    break
+                else
+                    echo ""
+                    echo -e "${YELLOW}Please execute this command on your ONTAP system:${NC}"
+                    echo -e "${YELLOW}$svm_command${NC}"
+                    echo -e "${CYAN}Reference - Source SVM: $source_svm_name, Target SVM: $target_svm_name${NC}"
+                    echo ""
+                    echo "The migration cannot proceed until this command is executed successfully."
+                    echo ""
+                    if ask_user_choice "Do you want to skip this step? (NOT RECOMMENDED - may cause migration failure)" "n"; then
+                        warning "SVM peering step skipped by user - migration may fail"
+                        break
+                    fi
+                fi
+            done
+        else
+            warning "SVM peering command not found in operation result"
+            info "Please check the Azure portal for the peering command or operation status"
+        fi
+    fi
+}
+
+# Main interactive workflow
+run_interactive_workflow() {
+    check_dependencies
+    parse_config
+    
+    local protocol=$(get_protocol)
+    local qos=$(get_qos)
+    
+    step_header "Azure NetApp Files Migration Assistant - Interactive Mode"
+    
+    info "Starting interactive migration workflow for $protocol with $qos QoS"
+    info "Current configuration:"
+    ./anf_workflow.sh config
+    
+    echo ""
+    if ! ask_user_choice "Do you want to proceed with the interactive migration workflow?" "y"; then
+        info "Workflow cancelled by user"
+        exit 0
+    fi
+    
+    # Ask about monitoring preferences
+    echo ""
+    echo -e "${BLUE}📊 Monitoring Options:${NC}"
+    echo "  [f] Full monitoring - Check status for all operations (recommended)"
+    echo "  [q] Quick mode - Skip most monitoring prompts for faster execution"
+    echo "  [c] Custom - Ask for each operation individually"
+    
+    while true; do
+        read -p "Choose monitoring mode [f/q/c]: " -n 1 -r
+        echo ""
+        case $REPLY in
+            [Ff])
+                monitoring_mode="full"
+                info "Using full monitoring mode"
+                break
+                ;;
+            [Qq])
+                monitoring_mode="quick"
+                info "Using quick mode - minimal monitoring"
+                break
+                ;;
+            [Cc])
+                monitoring_mode="custom"
+                info "Using custom mode - will ask for each operation"
+                break
+                ;;
+            *)
+                echo "Please choose f, q, or c"
+                ;;
+        esac
+    done
+    
+    export ANF_MONITORING_MODE="$monitoring_mode"
     
     # Step 1: Authentication
     get_token_interactive
@@ -1214,12 +1506,18 @@ run_interactive_workflow() {
         "Initiate cluster peering with source ONTAP system" \
         "200,201,202"
     
+    # Step 3b: Get cluster peer result to retrieve cluster peering command and passphrase
+    get_cluster_peer_result
+    
     # Step 4: Authorize external replication
     execute_api_call "authorize_replication" "POST" \
         "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/authorizeExternalReplication" \
         "" \
         "Authorize the external replication relationship" \
         "200,201,202"
+    
+    # Step 4b: Get async operation result to retrieve SVM peering command
+    get_async_operation_result
     
     # Step 5: Perform replication transfer (this can take a long time)
     execute_api_call "replication_transfer" "POST" \
