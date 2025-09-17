@@ -1320,7 +1320,6 @@ except:
             fi
             info "Please check the Azure portal for the peering command and passphrase"
         fi
-    fi
 }
 
 # Function to get async operation result and extract SVM peering command
