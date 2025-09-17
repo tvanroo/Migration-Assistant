@@ -1434,6 +1434,17 @@ except:
     fi
 }
 
+# Check if required tools are available
+check_dependencies() {
+    info "Checking dependencies..."
+    
+    command -v curl >/dev/null 2>&1 || error_exit "curl is required but not installed"
+    command -v python3 >/dev/null 2>&1 || error_exit "python3 is required but not installed"
+    command -v jq >/dev/null 2>&1 || warning "jq not found - JSON parsing will be limited"
+    
+    success "Dependencies check passed"
+}
+
 # Main interactive workflow
 run_interactive_workflow() {
     check_dependencies
