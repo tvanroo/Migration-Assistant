@@ -661,57 +661,143 @@ except:
 import json, sys
 try:
     data = json.load(sys.stdin)
-    if 'properties' in data and 'svmPeeringCommand' in data['properties']:
-        print(data['properties']['svmPeeringCommand'])
+    # Try both case variations for SVM peering command
+    if 'properties' in data:
+        if 'SvmPeeringCommand' in data['properties']:
+            print(data['properties']['SvmPeeringCommand'])
+        elif 'svmPeeringCommand' in data['properties']:
+            print(data['properties']['svmPeeringCommand'])
 except:
     pass
 " 2>/dev/null)
                     
                     if [[ -n "$cluster_command" && -n "$cluster_passphrase" ]]; then
                         echo ""
-                        echo -e "${GREEN}🎉 Cluster Peering Information Extracted:${NC}"
+                        echo -e "${GREEN}✅ Cluster Peer Command Retrieved:${NC}"
                         echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
                         echo -e "${CYAN}║ EXECUTE THIS COMMAND ON YOUR ON-PREMISES ONTAP SYSTEM:                      ║${NC}"
                         echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
                         echo ""
                         echo -e "${YELLOW}$cluster_command${NC}"
                         echo ""
-                        echo -e "${GREEN}📋 Passphrase:${NC} ${YELLOW}$cluster_passphrase${NC}"
+                        echo -e "${GREEN}📋 Passphrase:${NC}"
+                        echo -e "${YELLOW}$cluster_passphrase${NC}"
                         echo ""
-                        echo -e "${BLUE}📝 Instructions:${NC}"
+                        echo -e "${BLUE}📋 Configuration Reference Values:${NC}"
+                        local source_peer_addresses=$(get_config_value 'source_peer_addresses')
+                        echo -e "${CYAN}  IP-SPACE-NAME: Default (or your custom IP space name)${NC}"
+                        echo -e "${CYAN}  peer-addresses-list: $source_peer_addresses${NC}"
+                        echo ""
+                        echo -e "${CYAN}📝 Instructions:${NC}"
                         echo "  1. Log into your on-premises ONTAP system as an administrator"
-                        echo "  2. Replace <IP-SPACE-NAME> with your IP space (usually 'Default')"
+                        echo "  2. Replace the placeholders in the command with your actual values:"
+                        echo "     - Replace <IP-SPACE-NAME> with your IP space (usually 'Default')"
+                        echo "     - Replace <peer-addresses-list> with the peer addresses shown above"
                         echo "  3. Execute the modified command"
-                        echo "  4. When prompted, enter the passphrase above"
+                        echo "  4. When prompted, enter the passphrase: $cluster_passphrase"
                         echo "  5. Verify the command completes successfully"
+                        echo "  6. Return here and confirm completion"
                         echo ""
+                        
+                        # Wait for user confirmation
+                        while true; do
+                            if ask_user_choice "Have you successfully executed the cluster peer command on your ONTAP system?" "n"; then
+                                success "Cluster peer command execution confirmed"
+                                break
+                            else
+                                echo ""
+                                echo -e "${YELLOW}Please execute this cluster peer command on your ONTAP system:${NC}"
+                                echo -e "${YELLOW}$cluster_command${NC}"
+                                echo -e "${YELLOW}Passphrase: $cluster_passphrase${NC}"
+                                echo -e "${CYAN}Reference - peer addresses: $source_peer_addresses${NC}"
+                                echo ""
+                                echo "The migration cannot proceed until this command is executed successfully."
+                                echo ""
+                                if ask_user_choice "Do you want to skip this step? (NOT RECOMMENDED - may cause migration failure)" "n"; then
+                                    warning "Cluster peer step skipped by user - migration may fail"
+                                    break
+                                fi
+                            fi
+                        done
                     fi
                     
                     if [[ -n "$svm_command" ]]; then
                         echo ""
-                        echo -e "${GREEN}🎉 SVM Peering Information Extracted:${NC}"
+                        echo -e "${GREEN}✅ SVM Peering Command Retrieved:${NC}"
                         echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
                         echo -e "${CYAN}║ EXECUTE THIS COMMAND ON YOUR ON-PREMISES ONTAP SYSTEM:                      ║${NC}"
                         echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
                         echo ""
-                        
-                        # Display the command with placeholders intact
                         echo -e "${YELLOW}$svm_command${NC}"
                         echo ""
                         echo -e "${BLUE}📋 Configuration Reference Values:${NC}"
                         local source_svm_name=$(get_config_value 'source_svm_name')
                         local target_svm_name=$(get_config_value 'target_svm_name')
-                        echo -e "${CYAN}  on-prem-svm-name: $source_svm_name${NC}"
-                        echo -e "${CYAN}  destination-svm-name: $target_svm_name${NC}"
+                        echo -e "${CYAN}  source-svm-name: $source_svm_name${NC}"
+                        echo -e "${CYAN}  target-svm-name: $target_svm_name${NC}"
                         echo ""
                         echo -e "${CYAN}📝 Instructions:${NC}"
                         echo "  1. Log into your on-premises ONTAP system as an administrator"
-                        echo "  2. Replace the placeholders in the command with your actual values:"
-                        echo "     - Replace 'on-prem-svm-name' with your source SVM: $source_svm_name"
-                        echo "     - Replace 'destination-svm-name' with your target SVM: $target_svm_name"
-                        echo "  3. Execute the modified command"
-                        echo "  4. Verify the command completes successfully"
+                        echo "  2. Execute the command as shown (no placeholders to replace)"
+                        echo "  3. Verify the command completes successfully"
+                        echo "  4. Return here and confirm completion"
                         echo ""
+                        
+                        # Wait for user confirmation
+                        while true; do
+                            if ask_user_choice "Have you successfully executed the SVM peering command on your ONTAP system?" "n"; then
+                                success "SVM peering command execution confirmed"
+                                
+                                # Show completion message and next steps
+                                echo ""
+                                echo -e "${GREEN}🎉 Data Synchronization Phase Started!${NC}"
+                                echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+                                echo -e "${CYAN}║ MIGRATION SETUP COMPLETE - DATA SYNC IN PROGRESS                            ║${NC}"
+                                echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+                                echo ""
+                                echo -e "${BLUE}📊 What's happening now:${NC}"
+                                echo "  • Data is now synchronizing from your on-premises ONTAP system to Azure NetApp Files"
+                                echo "  • This initial sync can take several hours or days depending on data size"
+                                echo "  • The sync will continue automatically in the background"
+                                echo ""
+                                echo -e "${YELLOW}📈 How to monitor sync progress:${NC}"
+                                echo "  1. Go to the Azure Portal"
+                                echo "  2. Navigate to your Azure NetApp Files volume: ${target_volume_name:-[target volume]}"
+                                echo "  3. Check the 'Metrics' section for replication progress"
+                                echo "  4. Look for metrics like 'is Volume Replication Transferring' and 'Volume Replication Total Transfer'"
+                                echo ""
+                                echo -e "${PURPLE}⏳ Next steps:${NC}"
+                                echo "  1. Wait for the initial data sync to complete (this can take hours/days)"
+                                echo "  2. Monitor progress using Azure Portal metrics"
+                                echo "  3. When ready to finalize the migration (break replication and make volume writable):"
+                                echo "     Run this script again and select the 'break_replication' step"
+                                echo ""
+                                echo -e "${CYAN}💡 Important notes:${NC}"
+                                echo "  • Do NOT break replication until you're ready to switch to the Azure volume"
+                                echo "  • Breaking replication makes the Azure volume writable but stops sync from on-premises"
+                                echo "  • Plan your cutover carefully to minimize downtime"
+                                echo ""
+                                echo -e "${GREEN}✅ Setup phase completed successfully!${NC}"
+                                echo -e "${BLUE}📝 Detailed logs are available in: $LOG_FILE${NC}"
+                                echo ""
+                                
+                                # Set a flag to indicate we should stop the workflow here
+                                export MIGRATION_SYNC_STARTED="true"
+                                break
+                            else
+                                echo ""
+                                echo -e "${YELLOW}Please execute this SVM peering command on your ONTAP system:${NC}"
+                                echo -e "${YELLOW}$svm_command${NC}"
+                                echo -e "${CYAN}Reference - Source SVM: $source_svm_name, Target SVM: $target_svm_name${NC}"
+                                echo ""
+                                echo "The migration cannot proceed until this command is executed successfully."
+                                echo ""
+                                if ask_user_choice "Do you want to skip this step? (NOT RECOMMENDED - may cause migration failure)" "n"; then
+                                    warning "SVM peering step skipped by user - migration may fail"
+                                    break
+                                fi
+                            fi
+                        done
                     fi
                     
                     # Store the response file path in a global variable
@@ -1227,373 +1313,6 @@ get_volume_payload() {
     fi
 }
 
-# Main interactive workflow
-run_interactive_workflow() {
-    local protocol=$(get_protocol)
-    local qos=$(get_qos)
-    
-    step_header "Azure NetApp Files Migration Assistant - Interactive Mode"
-    
-    info "Starting interactive migration workflow for $protocol with $qos QoS"
-    info "Current configuration:"
-    ./anf_workflow.sh config
-    
-    echo ""
-    if ! ask_user_choice "Do you want to proceed with the interactive migration workflow?" "y"; then
-        info "Workflow cancelled by user"
-        exit 0
-    fi
-    
-    # Ask about monitoring preferences
-    echo ""
-    echo -e "${BLUE}📊 Monitoring Options:${NC}"
-    echo "  [f] Full monitoring - Check status for all operations (recommended)"
-    echo "  [q] Quick mode - Skip most monitoring prompts for faster execution"
-    echo "  [c] Custom - Ask for each operation individually"
-    
-    local monitoring_mode="custom"
-    while true; do
-        read -p "Choose monitoring mode [f/q/c]: " -n 1 -r
-        echo ""
-        case $REPLY in
-            [Ff])
-                monitoring_mode="full"
-                info "Using full monitoring mode"
-                break
-                ;;
-            [Qq])
-                monitoring_mode="quick"
-                info "Using quick mode - minimal monitoring"
-                break
-                ;;
-            [Cc])
-                monitoring_mode="custom"
-                info "Using custom mode - will ask for each operation"
-                break
-                ;;
-            *)
-                echo "Please choose f, q, or c"
-                ;;
-        esac
-    done
-    
-    export ANF_MONITORING_MODE="$monitoring_mode"
-}
-
-# Function to display cluster peer request result (re-display information from previous step)
-get_cluster_peer_result() {
-    step_header "Step: get_cluster_peer_result"
-    
-    if ! confirm_step "get_cluster_peer_result" "Display cluster peering command and passphrase"; then
-        return 0  # Step was skipped
-    fi
-    
-    info "Displaying cluster peer information from previous step..."
-    
-    # Check for persistent async response file
-    local persistent_file="${SCRIPT_DIR}/.last_async_response"
-    if [[ -f "$persistent_file" ]]; then
-        info "Loading async response data from persistent file..."
-        export LAST_ASYNC_RESPONSE_DATA=$(cat "$persistent_file")
-    fi
-    
-    # Check if we have the async response data from the peer_request step
-    if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
-        info "Found async response data - checking for cluster peer information..."
-        if [[ "${DEBUG:-}" == "1" ]]; then
-            info "DEBUG: Async response data: ${LAST_ASYNC_RESPONSE_DATA:0:200}..." # Show first 200 chars
-        fi
-        
-        # Check if this async response already contains the cluster peer information
-        local peer_command_from_async
-        local passphrase_from_async
-        local python_error
-        
-        # Try to extract peer command with better error handling
-        python_error=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    if 'properties' in data and 'clusterPeeringCommand' in data['properties']:
-        print(data['properties']['clusterPeeringCommand'])
-    else:
-        print('NOTFOUND', file=sys.stderr)
-        sys.exit(1)
-except Exception as e:
-    print(f'ERROR: {e}', file=sys.stderr)
-    sys.exit(1)
-" 2>&1)
-        
-        if [[ $? -eq 0 ]]; then
-            peer_command_from_async="$python_error"
-            info "Successfully extracted peer command"
-        else
-            if [[ "${DEBUG:-}" == "1" ]]; then
-                info "DEBUG: Failed to extract peer command: $python_error"
-            fi
-        fi
-        
-        # Try to extract passphrase with better error handling
-        python_error=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    if 'properties' in data and 'passphrase' in data['properties']:
-        print(data['properties']['passphrase'])
-    else:
-        print('NOTFOUND', file=sys.stderr)
-        sys.exit(1)
-except Exception as e:
-    print(f'ERROR: {e}', file=sys.stderr)
-    sys.exit(1)
-" 2>&1)
-        
-        if [[ $? -eq 0 ]]; then
-            passphrase_from_async="$python_error"
-            info "Successfully extracted passphrase"
-        else
-            if [[ "${DEBUG:-}" == "1" ]]; then
-                info "DEBUG: Failed to extract passphrase: $python_error"
-            fi
-        fi
-        
-        if [[ -n "$peer_command_from_async" && -n "$passphrase_from_async" ]]; then
-            info "Cluster peer command already available in async response - using cached data"
-            # Set the variables for use in the display section
-            peer_command="$peer_command_from_async"
-            passphrase="$passphrase_from_async"
-            if [[ "${DEBUG:-}" == "1" ]]; then
-                info "DEBUG: Set peer_command and passphrase variables"
-            fi
-        else
-            warning "Cluster peer command not found in cached async response"
-            if [[ "${DEBUG:-}" == "1" ]]; then
-                info "DEBUG: peer_command_from_async: '${peer_command_from_async:-EMPTY}'"
-                info "DEBUG: passphrase_from_async: '${passphrase_from_async:-EMPTY}'"
-            fi
-            info "This may happen if the async operation hasn't completed yet or returned different data"
-            info "You can:"
-            echo "  1. Check the Azure portal for the operation status"
-            echo "  2. Wait for the operation to complete and try again"
-            echo "  3. Skip this step and proceed manually"
-        fi
-    else
-        warning "No async response data available from peer_request step"
-        if [[ "${DEBUG:-}" == "1" ]]; then
-            info "DEBUG: LAST_ASYNC_RESPONSE_DATA is empty or not set"
-        fi
-        
-        # Check if persistent file exists but is empty
-        if [[ -f "$persistent_file" ]]; then
-            local file_size=$(wc -c < "$persistent_file" 2>/dev/null || echo "0")
-            warning "Persistent file exists but is empty or couldn't be read (size: $file_size bytes)"
-        else
-            warning "No persistent async response file found at: $persistent_file"
-        fi
-        
-        info "This could happen if:"
-        echo "  - The peer_request step was skipped"
-        echo "  - Async monitoring was disabled"
-        echo "  - The operation completed too quickly"
-        echo "  - The previous step failed or didn't complete"
-        echo ""
-        echo "To resolve this issue:"
-        echo "  1. Go back and ensure the peer_request step completed successfully"
-        echo "  2. Make sure async monitoring was enabled"
-        echo "  3. Check the Azure portal for the operation status"
-        echo ""
-        
-        # Don't proceed with empty data
-        warning "Cannot extract cluster peer command without async response data"
-        info "Skipping cluster peer command extraction"
-        return 1
-    fi
-    
-    if [[ "${DEBUG:-}" == "1" ]]; then
-        info "DEBUG: Reached end of data extraction section - continuing to display section"
-    fi
-    
-    # Display the cluster peering command and passphrase if available
-    echo ""
-    if [[ -n "$peer_command" && -n "$passphrase" ]]; then
-            echo ""
-            echo -e "${GREEN}✅ Cluster Peer Command Retrieved:${NC}"
-            echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
-            echo -e "${CYAN}║ EXECUTE THIS COMMAND ON YOUR ON-PREMISES ONTAP SYSTEM:                      ║${NC}"
-            echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
-            echo ""
-            
-            # Display the command with placeholders intact
-            echo -e "${YELLOW}$peer_command${NC}"
-            echo ""
-            echo -e "${GREEN}📋 Passphrase:${NC}"
-            echo -e "${YELLOW}$passphrase${NC}"
-            echo ""
-            echo -e "${BLUE}📋 Configuration Reference Values:${NC}"
-            local source_peer_addresses=$(get_config_value 'source_peer_addresses')
-            echo -e "${CYAN}  IP-SPACE-NAME: Default (or your custom IP space name)${NC}"
-            echo -e "${CYAN}  peer-addresses-list: $source_peer_addresses${NC}"
-            echo ""
-            echo -e "${CYAN}📝 Instructions:${NC}"
-            echo "  1. Log into your on-premises ONTAP system as an administrator"
-            echo "  2. Replace the placeholders in the command with your actual values:"
-            echo "     - Replace <IP-SPACE-NAME> with your IP space (usually 'Default')"
-            echo "     - Replace <peer-addresses-list> with the peer addresses shown above"
-            echo "  3. Execute the modified command"
-            echo "  4. When prompted, enter the passphrase: $passphrase"
-            echo "  5. Verify the command completes successfully"
-            echo "  6. Return here and confirm completion"
-            echo ""
-            
-            # Wait for user confirmation
-            while true; do
-                if ask_user_choice "Have you successfully executed the cluster peer command on your ONTAP system?" "n"; then
-                    success "Cluster peer command execution confirmed"
-                    break
-                else
-                    echo ""
-                    echo -e "${YELLOW}Please execute this cluster peer command on your ONTAP system:${NC}"
-                    echo -e "${YELLOW}$peer_command${NC}"
-                    echo -e "${YELLOW}Passphrase: $passphrase${NC}"
-                    echo -e "${CYAN}Reference - peer addresses: $source_peer_addresses${NC}"
-                    echo ""
-                    echo "The migration cannot proceed until this command is executed successfully."
-                    echo ""
-                    if ask_user_choice "Do you want to skip this step? (NOT RECOMMENDED - may cause migration failure)" "n"; then
-                        warning "Cluster peer step skipped by user - migration may fail"
-                        break
-                    fi
-                fi
-            done
-        else
-            warning "Cluster peer command or passphrase not found in operation result"
-            if [[ -n "$peer_command" ]]; then
-                echo "Found command: $peer_command"
-            fi
-            if [[ -n "$passphrase" ]]; then
-                echo "Found passphrase: $passphrase"
-            fi
-            info "Please check the Azure portal for the peering command and passphrase"
-        fi
-}
-
-# Function to display SVM peering result (re-display information from previous step)
-get_async_operation_result() {
-    step_header "Step: get_async_operation_result"
-    
-    if ! confirm_step "get_async_operation_result" "Display SVM peering command"; then
-        return 0  # Step was skipped
-    fi
-    
-    info "Displaying SVM peering information from previous step..."
-    
-    # Check for persistent async response file
-    local persistent_file="${SCRIPT_DIR}/.last_async_response"
-    if [[ -f "$persistent_file" ]]; then
-        info "Loading async response data from persistent file..."
-        export LAST_ASYNC_RESPONSE_DATA=$(cat "$persistent_file")
-    fi
-    
-    # Check if we have the async response data from the authorize_replication step
-    local svm_command
-    if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
-        info "Found async response data - checking for SVM peering information..."
-        
-        # Extract SVM peering command
-        svm_command=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    if 'properties' in data and 'svmPeeringCommand' in data['properties']:
-        print(data['properties']['svmPeeringCommand'])
-except:
-    pass
-" 2>/dev/null)
-        
-        if [[ -n "$svm_command" ]]; then
-            info "SVM peering command found in async response"
-        else
-            warning "SVM peering command not found in cached async response"
-            info "This may happen if:"
-            echo "  - The authorize_replication step was skipped"
-            echo "  - The async operation returned different data"
-            echo "  - The operation hasn't completed yet"
-            echo ""
-            echo "Please check the Azure portal or re-run the authorize_replication step"
-            return 1
-        fi
-    else
-        warning "No async response data available from authorize_replication step"
-        # Check if persistent file exists but is empty
-        if [[ -f "$persistent_file" ]]; then
-            local file_size=$(wc -c < "$persistent_file" 2>/dev/null || echo "0")
-            warning "Persistent file exists but is empty or couldn't be read (size: $file_size bytes)"
-        else
-            warning "No persistent async response file found at: $persistent_file"
-        fi
-        
-        info "This could happen if:"
-        echo "  - The authorize_replication step was skipped"
-        echo "  - Async monitoring was disabled"
-        echo "  - The operation completed too quickly"
-        echo "  - The previous step failed or didn't complete"
-        echo ""
-        echo "Please go back and ensure the authorize_replication step completed successfully"
-        return 1
-    fi
-    
-    # Display the SVM peering command if available
-    echo ""
-    if [[ -n "$svm_command" ]]; then
-            echo ""
-            echo -e "${GREEN}✅ SVM Peering Command Retrieved:${NC}"
-            echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
-            echo -e "${CYAN}║ EXECUTE THIS COMMAND ON YOUR ON-PREMISES ONTAP SYSTEM:                      ║${NC}"
-            echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
-            echo ""
-            echo -e "${YELLOW}$svm_command${NC}"
-            echo ""
-            echo -e "${BLUE}📋 Configuration Reference Values:${NC}"
-            local source_svm_name=$(get_config_value 'source_svm_name')
-            local target_svm_name=$(get_config_value 'target_svm_name')
-            echo -e "${CYAN}  on-prem-svm-name: $source_svm_name${NC}"
-            echo -e "${CYAN}  destination-svm-name: $target_svm_name${NC}"
-            echo ""
-            echo -e "${CYAN}📝 Instructions:${NC}"
-            echo "  1. Log into your on-premises ONTAP system as an administrator"
-            echo "  2. Replace the placeholders in the command with your actual values:"
-            echo "     - Replace 'on-prem-svm-name' with your source SVM: $source_svm_name"
-            echo "     - Replace 'destination-svm-name' with your target SVM: $target_svm_name"
-            echo "  3. Execute the modified command"
-            echo "  4. Verify the command completes successfully"
-            echo "  5. Return here and confirm completion"
-            echo ""
-            
-            # Wait for user confirmation
-            while true; do
-                if ask_user_choice "Have you successfully executed the SVM peering command on your ONTAP system?" "n"; then
-                    success "SVM peering command execution confirmed"
-                    break
-                else
-                    echo ""
-                    echo -e "${YELLOW}Please execute this command on your ONTAP system:${NC}"
-                    echo -e "${YELLOW}$svm_command${NC}"
-                    echo -e "${CYAN}Reference - Source SVM: $source_svm_name, Target SVM: $target_svm_name${NC}"
-                    echo ""
-                    echo "The migration cannot proceed until this command is executed successfully."
-                    echo ""
-                    if ask_user_choice "Do you want to skip this step? (NOT RECOMMENDED - may cause migration failure)" "n"; then
-                        warning "SVM peering step skipped by user - migration may fail"
-                        break
-                    fi
-                fi
-            done
-        else
-            warning "SVM peering command not found in operation result"
-            info "Please check the Azure portal for the peering command or operation status"
-        fi
-}
-
 # Check if required tools are available
 check_dependencies() {
     info "Checking dependencies..."
@@ -1619,24 +1338,127 @@ validate_config() {
     ./anf_workflow.sh config
 }
 
-# Main interactive workflow
-run_interactive_workflow() {
+# Show help
+show_help() {
+    echo -e "${GREEN}═══════════════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}  Azure NetApp Files Migration Assistant - Interactive Mode${NC}"
+    echo -e "${GREEN}═══════════════════════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo "This tool provides a menu-driven approach to Azure NetApp Files migration,"
+    echo "with step-by-step execution and full visibility into each REST API call."
+    echo ""
+    echo -e "${BLUE}Usage:${NC} $0 [COMMAND]"
+    echo ""
+    echo -e "${CYAN}Commands:${NC}"
+    echo "  menu     - Show interactive menu (default)"
+    echo "  setup    - Run setup wizard configuration"
+    echo "  peering  - Run peering setup (volume creation through SVM peering)"
+    echo "  break    - Run break replication workflow (finalize migration)"
+    echo "  config   - Show current configuration"
+    echo "  token    - Get authentication token only"
+    echo "  help     - Show this help message"
+    echo ""
+    echo -e "${YELLOW}Workflow Phases:${NC}"
+    echo -e "${PURPLE}Phase 1 - Setup:${NC} Configure parameters and generate config file"
+    echo -e "${PURPLE}Phase 2 - Peering:${NC} Create volume, establish cluster/SVM peering, start sync"
+    echo -e "${PURPLE}Phase 3 - Finalization:${NC} Break replication and make volume writable"
+    echo ""
+    echo -e "${CYAN}Features:${NC}"
+    echo "  • Menu-driven workflow selection for better organization"
+    echo "  • Step-by-step execution with user confirmation"
+    echo "  • Full REST API request/response visibility"
+    echo "  • Interactive ONTAP command execution guidance"
+    echo "  • Multiple monitoring modes: Full, Quick, or Custom"
+    echo "  • Natural stopping points between workflow phases"
+    echo "  • Detailed logging of all API interactions"
+    echo ""
+    echo -e "${GREEN}Typical Usage Pattern:${NC}"
+    echo "  1. Run 'anf_interactive.sh setup' or choose menu option 1"
+    echo "  2. Run 'anf_interactive.sh peering' or choose menu option 2"
+    echo "  3. Wait for data sync to complete (monitor in Azure Portal)"
+    echo "  4. Run 'anf_interactive.sh break' or choose menu option 3"
+    echo ""
+}
+
+# Main menu system
+show_main_menu() {
+    echo -e "${GREEN}═══════════════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}  Azure NetApp Files Migration Assistant - Interactive Mode${NC}"
+    echo -e "${GREEN}═══════════════════════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${BLUE}Please select the workflow you want to execute:${NC}"
+    echo ""
+    echo -e "${CYAN}  1. Run Setup Wizard${NC}"
+    echo -e "${YELLOW}     Configure migration parameters and generate config file${NC}"
+    echo ""
+    echo -e "${CYAN}  2. Run Peering Setup${NC}"
+    echo -e "${YELLOW}     Execute volume creation, cluster peering, and SVM peering${NC}"
+    echo -e "${YELLOW}     (Stops after data sync begins)${NC}"
+    echo ""
+    echo -e "${CYAN}  3. Break Replication & Finalize Migration${NC}"
+    echo -e "${YELLOW}     Complete the migration by breaking replication and making volume writable${NC}"
+    echo -e "${YELLOW}     (Run this after data sync is complete)${NC}"
+    echo ""
+    echo -e "${PURPLE}  4. Show Current Configuration${NC}"
+    echo -e "${PURPLE}  5. Get Authentication Token Only${NC}"
+    echo -e "${PURPLE}  6. Help${NC}"
+    echo -e "${PURPLE}  q. Quit${NC}"
+    echo ""
+}
+
+# Setup wizard workflow
+run_setup_wizard() {
+    step_header "Setup Wizard"
+    info "Launching configuration wizard..."
+    
+    if [[ -f "${SCRIPT_DIR}/setup_wizard.py" ]]; then
+        python3 "${SCRIPT_DIR}/setup_wizard.py"
+        if [[ $? -eq 0 ]]; then
+            success "Configuration wizard completed successfully"
+            info "Config file updated: $CONFIG_FILE"
+            echo ""
+            if ask_user_choice "Would you like to review the configuration?" "y"; then
+                echo ""
+                step_header "Current Configuration"
+                ./anf_workflow.sh config 2>/dev/null || echo -e "${YELLOW}Config file created but anf_workflow.sh not found for display${NC}"
+            fi
+        else
+            warning "Configuration wizard exited without completing"
+        fi
+    else
+        warning "Setup wizard not found at ${SCRIPT_DIR}/setup_wizard.py"
+        info "Please run the setup wizard manually or ensure the file exists"
+    fi
+}
+
+# Peering setup workflow (Steps 1-4: Authentication, Volume Creation, Cluster Peering, SVM Peering)
+run_peering_setup() {
     check_dependencies
     validate_config
     
     local protocol=$(get_protocol)
     local qos=$(get_qos)
     
-    step_header "Azure NetApp Files Migration Assistant - Interactive Mode"
+    step_header "Peering Setup Workflow"
     
-    info "Starting interactive migration workflow for $protocol with $qos QoS"
-    info "Current configuration:"
-    ./anf_workflow.sh config
-    
+    info "Starting peering setup workflow for $protocol with $qos QoS"
     echo ""
-    if ! ask_user_choice "Do you want to proceed with the interactive migration workflow?" "y"; then
+    echo -e "${BLUE}This workflow will:${NC}"
+    echo "  1. Authenticate with Azure"
+    echo "  2. Create the target volume"
+    echo "  3. Set up cluster peering (with ONTAP command execution)"
+    echo "  4. Set up SVM peering (with ONTAP command execution)"
+    echo "  5. Begin data synchronization"
+    echo ""
+    echo -e "${YELLOW}After completion, you'll need to:${NC}"
+    echo "  • Monitor sync progress in Azure Portal"
+    echo "  • Wait for data synchronization to complete"
+    echo "  • Run workflow #3 when ready to finalize migration"
+    echo ""
+    
+    if ! ask_user_choice "Do you want to proceed with the peering setup workflow?" "y"; then
         info "Workflow cancelled by user"
-        exit 0
+        return 0
     fi
     
     # Ask about monitoring preferences
@@ -1646,6 +1468,7 @@ run_interactive_workflow() {
     echo "  [q] Quick mode - Skip most monitoring prompts for faster execution"
     echo "  [c] Custom - Ask for each operation individually"
     
+    local monitoring_mode="custom"
     while true; do
         read -p "Choose monitoring mode [f/q/c]: " -n 1 -r
         echo ""
@@ -1691,9 +1514,6 @@ run_interactive_workflow() {
         "Initiate cluster peering with source ONTAP system" \
         "200,201,202"
     
-    # Step 3b: Get cluster peer result to retrieve cluster peering command and passphrase
-    get_cluster_peer_result
-    
     # Step 4: Authorize external replication
     execute_api_call "authorize_replication" "POST" \
         "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/authorizeExternalReplication" \
@@ -1701,14 +1521,99 @@ run_interactive_workflow() {
         "Authorize the external replication relationship" \
         "200,201,202"
     
-    # Step 4b: Get async operation result to retrieve SVM peering command
-    get_async_operation_result
+    # Check if migration sync was started (SVM peering completed)
+    if [[ "${MIGRATION_SYNC_STARTED:-}" == "true" ]]; then
+        info "Peering setup completed - data synchronization in progress"
+        echo ""
+        echo -e "${GREEN}🎉 Peering Setup Completed Successfully!${NC}"
+        echo ""
+        echo -e "${BLUE}Next Steps:${NC}"
+        echo "  1. Monitor sync progress in Azure Portal"
+        echo "  2. Wait for data synchronization to complete"
+        echo "  3. When ready to cut over, run this script again and select option 3"
+        echo ""
+        return 0
+    fi
+    
+    warning "Peering setup completed but sync flag not set - this may indicate an issue"
+    info "Please check the Azure Portal for volume status and replication progress"
+}
+
+# Break replication workflow (Steps 5-7: Replication Transfer, Break Replication, Finalize)
+run_break_replication() {
+    check_dependencies
+    validate_config
+    
+    step_header "Break Replication & Finalize Migration"
+    
+    info "This workflow will complete your migration by:"
+    echo "  1. Performing final replication transfer"
+    echo "  2. Breaking the replication relationship"
+    echo "  3. Finalizing the migration (cleanup)"
+    echo ""
+    echo -e "${RED}⚠️  IMPORTANT WARNING:${NC}"
+    echo -e "${YELLOW}Breaking replication will:${NC}"
+    echo "  • Stop data synchronization from on-premises"
+    echo "  • Make the Azure volume writable"
+    echo "  • This action cannot be easily undone"
+    echo ""
+    echo -e "${CYAN}Before proceeding, ensure:${NC}"
+    echo "  • Data synchronization is complete (check Azure Portal metrics)"
+    echo "  • You're ready to switch users to the Azure volume"
+    echo "  • You have a rollback plan if needed"
+    echo ""
+    
+    if ! ask_user_choice "Are you sure you want to break replication and finalize the migration?" "n"; then
+        info "Break replication workflow cancelled by user"
+        return 0
+    fi
+    
+    # Ensure we have a valid token
+    if [[ ! -f "$TOKEN_FILE" ]]; then
+        info "Getting authentication token..."
+        get_token
+    fi
+    
+    # Ask about monitoring preferences
+    echo ""
+    echo -e "${BLUE}📊 Monitoring Options:${NC}"
+    echo "  [f] Full monitoring - Check status for all operations (recommended)"
+    echo "  [q] Quick mode - Skip most monitoring prompts for faster execution"
+    echo "  [c] Custom - Ask for each operation individually"
+    
+    local monitoring_mode="full"  # Default to full for finalization steps
+    while true; do
+        read -p "Choose monitoring mode [f/q/c]: " -n 1 -r
+        echo ""
+        case $REPLY in
+            [Ff])
+                monitoring_mode="full"
+                info "Using full monitoring mode"
+                break
+                ;;
+            [Qq])
+                monitoring_mode="quick"
+                info "Using quick mode - minimal monitoring"
+                break
+                ;;
+            [Cc])
+                monitoring_mode="custom"
+                info "Using custom mode - will ask for each operation"
+                break
+                ;;
+            *)
+                echo "Please choose f, q, or c"
+                ;;
+        esac
+    done
+    
+    export ANF_MONITORING_MODE="$monitoring_mode"
     
     # Step 5: Perform replication transfer (this can take a long time)
     execute_api_call "replication_transfer" "POST" \
         "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/performReplicationTransfer" \
         "" \
-        "Start the initial data replication (THIS CAN TAKE HOURS)" \
+        "Start the final data replication transfer" \
         "200,201,202"
     
     # Step 6: Break replication relationship
@@ -1725,41 +1630,104 @@ run_interactive_workflow() {
         "Finalize and clean up the external replication configuration" \
         "200,201,202"
     
-    step_header "🎉 Migration Workflow Completed!"
+    step_header "🎉 Migration Completed Successfully!"
     success "All migration steps have been executed"
-    info "Check your Azure NetApp Files volume to verify the migration completed successfully"
+    echo ""
+    echo -e "${GREEN}✅ Your Azure NetApp Files volume is now ready for production use!${NC}"
+    echo ""
+    echo -e "${BLUE}Post-Migration Steps:${NC}"
+    echo "  1. Update DNS records to point to the new Azure volume"
+    echo "  2. Update client mount configurations if needed"
+    echo "  3. Test application connectivity and functionality"
+    echo "  4. Monitor performance and adjust as needed"
+    echo ""
+    echo -e "${CYAN}Volume Information:${NC}"
+    local target_volume_name=$(get_config_value 'target_volume_name')
+    local target_resource_group=$(get_config_value 'target_resource_group')
+    echo "  • Volume Name: $target_volume_name"
+    echo "  • Resource Group: $target_resource_group"
+    echo "  • Check Azure Portal for mount targets and connection details"
+    echo ""
     info "Detailed logs are available in: $LOG_FILE"
 }
 
-# Show help
-show_help() {
-    echo "Azure NetApp Files Migration Assistant - Interactive Mode"
-    echo ""
-    echo "This tool allows you to execute the migration workflow step-by-step,"
-    echo "with full visibility into each REST API call and its response."
-    echo ""
-    echo "Usage: $0 [COMMAND]"
-    echo ""
-    echo "Commands:"
-    echo "  run     - Start the interactive migration workflow (default)"
-    echo "  config  - Show current configuration"
-    echo "  token   - Get authentication token only"
-    echo "  help    - Show this help message"
-    echo ""
-    echo "Features:"
-    echo "  • Step-by-step execution with user confirmation"
-    echo "  • Full REST API request/response visibility"
-    echo "  • Smart volume status checking (replaces problematic async monitoring)"
-    echo "  • Multiple monitoring modes: Full, Quick, or Custom"
-    echo "  • Option to pause, skip, or repeat steps"
-    echo "  • Detailed logging of all API interactions"
-    echo ""
+# Main menu loop
+run_main_menu() {
+    while true; do
+        show_main_menu
+        read -p "Enter your choice [1-6/q]: " -r
+        echo ""
+        
+        case $REPLY in
+            1)
+                run_setup_wizard
+                echo ""
+                echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
+                read
+                ;;
+            2)
+                run_peering_setup
+                echo ""
+                echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
+                read
+                ;;
+            3)
+                run_break_replication
+                echo ""
+                echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
+                read
+                ;;
+            4)
+                step_header "Current Configuration"
+                ./anf_workflow.sh config 2>/dev/null || echo -e "${YELLOW}anf_workflow.sh not found${NC}"
+                echo ""
+                echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
+                read
+                ;;
+            5)
+                step_header "Authentication Token"
+                get_token
+                echo ""
+                echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
+                read
+                ;;
+            6|"help"|"--help"|"-h")
+                show_help
+                echo ""
+                echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
+                read
+                ;;
+            [Qq])
+                info "Goodbye!"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Invalid choice. Please select 1-6 or q.${NC}"
+                echo ""
+                echo -e "${CYAN}Press ENTER to continue...${NC}"
+                read
+                ;;
+        esac
+    done
 }
 
 # Main execution
-case "${1:-run}" in
+case "${1:-menu}" in
+    "menu"|"")
+        run_main_menu
+        ;;
+    "setup"|"wizard")
+        run_setup_wizard
+        ;;
+    "peering")
+        run_peering_setup
+        ;;
+    "break"|"finalize")
+        run_break_replication
+        ;;
     "run")
-        run_interactive_workflow
+        # Legacy support - run peering setup
+        run_peering_setup
         ;;
     "config")
         ./anf_workflow.sh config
@@ -1772,7 +1740,15 @@ case "${1:-run}" in
         ;;
     *)
         echo "Unknown command: $1"
-        show_help
+        echo ""
+        echo "Available commands:"
+        echo "  menu     - Show interactive menu (default)"
+        echo "  setup    - Run setup wizard"
+        echo "  peering  - Run peering setup workflow"
+        echo "  break    - Run break replication workflow"
+        echo "  config   - Show current configuration"
+        echo "  token    - Get authentication token"
+        echo "  help     - Show help"
         exit 1
         ;;
 esac

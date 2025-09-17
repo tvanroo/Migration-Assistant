@@ -491,7 +491,7 @@ class ANFSetupWizard:
         
         current_server = existing.get('variables', {}).get('source_server_name', '')
         self.config['variables']['source_server_name'] = self.get_input(
-            "Source Server/SVM Name", 
+            "Source SVM Server Name", 
             current_server, 
             required=True
         )
