@@ -1207,57 +1207,60 @@ get_cluster_peer_result() {
     
     info "Getting cluster peer result from peer_request step..."
     
-    # Get the async operation result similar to SVM peering
+    # Check if we have the async response data from the peer_request step
     if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
-        local operation_id
-        if operation_id=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
-import json, sys, re
+        # Check if this async response already contains the cluster peer information
+        local peer_command_from_async
+        local passphrase_from_async
+        
+        peer_command_from_async=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
+import json, sys
 try:
     data = json.load(sys.stdin)
-    name = data.get('name', '')
-    if name:
-        print(name)
+    if 'properties' in data and 'peerAcceptCommand' in data['properties']:
+        print(data['properties']['peerAcceptCommand'])
     else:
-        # Try to extract from ID field
-        id_field = data.get('id', '')
-        match = re.search(r'operationResults/([^/]+)', id_field)
-        if match:
-            print(match.group(1))
-        else:
-            sys.exit(1)
+        sys.exit(1)
 except:
     sys.exit(1)
-" 2>/dev/null); then
-            
-            local location=$(get_config_value 'target_location')
-            local subscription_id=$(get_config_value 'azure_subscription_id')
-            local operation_result_url="/subscriptions/${subscription_id}/providers/Microsoft.NetApp/locations/${location}/operationResults/${operation_id}"
-            
-            info "Using operation ID: $operation_id"
-            
-            # Make the API call to get operation results
-            execute_api_call "get_cluster_peer_operation_result" "GET" \
-                "$operation_result_url" \
-                "" \
-                "Get cluster peer async operation result with peering command" \
-                "200"
+" 2>/dev/null)
+        
+        passphrase_from_async=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    if 'properties' in data and 'passphrase' in data['properties']:
+        print(data['properties']['passphrase'])
+    else:
+        sys.exit(1)
+except:
+    sys.exit(1)
+" 2>/dev/null)
+        
+        if [[ -n "$peer_command_from_async" && -n "$passphrase_from_async" ]]; then
+            info "Cluster peer command already available in async response - using cached data"
+            # Set the variables for use in the display section
+            peer_command="$peer_command_from_async"
+            passphrase="$passphrase_from_async"
         else
-            warning "Could not extract operation ID from async response"
+            warning "Cluster peer command not found in cached async response"
+            info "This may happen if the async operation hasn't completed yet or returned different data"
+            info "You can:"
+            echo "  1. Check the Azure portal for the operation status"
+            echo "  2. Wait for the operation to complete and try again"
+            echo "  3. Skip this step and proceed manually"
         fi
     else
         warning "No async response data available from peer_request step"
+        info "This could happen if:"
+        echo "  - The peer_request step was skipped"
+        echo "  - Async monitoring was disabled"
+        echo "  - The operation completed too quickly"
     fi
     
-    # After the API call, try to extract the cluster peering command and passphrase
+    # Display the cluster peering command and passphrase if available
     echo ""
-    if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
-        local peer_command
-        local passphrase
-        
-        peer_command=$(get_async_response_field "properties.peerAcceptCommand" 2>/dev/null)
-        passphrase=$(get_async_response_field "properties.passphrase" 2>/dev/null)
-        
-        if [[ -n "$peer_command" && -n "$passphrase" ]]; then
+    if [[ -n "$peer_command" && -n "$passphrase" ]]; then
             echo ""
             echo -e "${GREEN}✅ Cluster Peer Command Retrieved:${NC}"
             echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
@@ -1330,47 +1333,31 @@ get_async_operation_result() {
     
     info "Getting async operation result from authorize_replication step..."
     
-    # First try to get the async operation URL from the previous step
+    # Check if we have the async response data from the authorize_replication step
+    local svm_command
     if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
-        # Extract the operation ID from the async response or use the async URL directly
-        local operation_result_url
-        
-        # Try to extract operation ID and build the operationResults URL
-        local operation_id
-        if operation_id=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
-import json, sys, re
+        # Check if this async response already contains the SVM peer information
+        svm_command=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
+import json, sys
 try:
     data = json.load(sys.stdin)
-    name = data.get('name', '')
-    if name:
-        print(name)
+    if 'properties' in data and 'svmPeeringCommand' in data['properties']:
+        print(data['properties']['svmPeeringCommand'])
     else:
-        # Try to extract from ID field
-        id_field = data.get('id', '')
-        match = re.search(r'operationResults/([^/]+)', id_field)
-        if match:
-            print(match.group(1))
-        else:
-            sys.exit(1)
+        sys.exit(1)
 except:
     sys.exit(1)
-" 2>/dev/null); then
-            
-            local location=$(get_config_value 'target_location')
-            local subscription_id=$(get_config_value 'azure_subscription_id')
-            operation_result_url="/subscriptions/${subscription_id}/providers/Microsoft.NetApp/locations/${location}/operationResults/${operation_id}"
-            
-            info "Using operation ID: $operation_id"
-            
-            # Make the API call to get operation results
-            execute_api_call "get_operation_result" "GET" \
-                "$operation_result_url" \
-                "" \
-                "Get async operation result with SVM peering command" \
-                "200"
+" 2>/dev/null)
+        
+        if [[ -n "$svm_command" ]]; then
+            info "SVM peering command already available in async response - using cached data"
         else
-            warning "Could not extract operation ID from async response"
-            info "Async response data available, but operation ID not found"
+            warning "SVM peering command not found in cached async response"
+            info "This may happen if the async operation hasn't completed yet or returned different data"
+            info "You can:"
+            echo "  1. Check the Azure portal for the operation status"
+            echo "  2. Wait for the operation to complete and try again"
+            echo "  3. Skip this step and proceed manually"
         fi
     else
         warning "No async response data available from authorize_replication step"
@@ -1380,11 +1367,9 @@ except:
         echo "  - The operation completed too quickly"
     fi
     
-    # After the API call, try to extract the SVM peering command from the new response
+    # Display the SVM peering command if available
     echo ""
-    if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
-        local svm_command
-        if svm_command=$(get_async_response_field "properties.svmPeeringCommand" 2>/dev/null); then
+    if [[ -n "$svm_command" ]]; then
             echo ""
             echo -e "${GREEN}✅ SVM Peering Command Retrieved:${NC}"
             echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
