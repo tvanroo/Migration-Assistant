@@ -1415,7 +1415,6 @@ except:
             warning "SVM peering command not found in operation result"
             info "Please check the Azure portal for the peering command or operation status"
         fi
-    fi
 }
 
 # Check if required tools are available
