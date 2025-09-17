@@ -352,6 +352,8 @@ except:
                 fi
                 ;;
             "custom")
+                echo ""
+                echo -e "${CYAN}⚠️  Async operation detected - monitoring decision required${NC}"
                 if ask_user_choice "Do you want to monitor this operation?" "y"; then
                     should_monitor="true"
                 fi
@@ -359,19 +361,19 @@ except:
         esac
         
         if [[ "$should_monitor" == "true" ]]; then
-            # Capture the final async response data
-            local final_response_file
-            final_response_file=$(monitor_async_operation "$async_url")
+            # Monitor the async operation (response file path will be stored in global variable)
+            monitor_async_operation "$async_url"
+            local monitor_result=$?
             
-            if [[ $? -eq 0 && -n "$final_response_file" && -f "$final_response_file" ]]; then
+            if [[ $monitor_result -eq 0 && -n "$ASYNC_RESPONSE_FILE" && -f "$ASYNC_RESPONSE_FILE" ]]; then
                 # Store the final async response in a global variable for use in next steps
-                export LAST_ASYNC_RESPONSE_FILE="$final_response_file"
-                export LAST_ASYNC_RESPONSE_DATA=$(cat "$final_response_file")
+                export LAST_ASYNC_RESPONSE_FILE="$ASYNC_RESPONSE_FILE"
+                export LAST_ASYNC_RESPONSE_DATA=$(cat "$ASYNC_RESPONSE_FILE")
                 info "Final async response data stored for use in subsequent steps"
                 
                 # Optional: Save to a persistent file for debugging
                 local persistent_file="${SCRIPT_DIR}/.last_async_response"
-                cp "$final_response_file" "$persistent_file"
+                cp "$ASYNC_RESPONSE_FILE" "$persistent_file"
                 info "Async response also saved to: $persistent_file"
             fi
         else
@@ -553,9 +555,10 @@ monitor_async_operation() {
             token=$(cat "$TOKEN_FILE")
         fi
         
-        local status_response=$(curl -s -H "Authorization: Bearer $token" "$async_url")
+        local status_response=$(curl -s --max-time 30 -H "Authorization: Bearer $token" "$async_url")
+        local curl_exit_code=$?
         
-        if [[ $? -ne 0 ]]; then
+        if [[ $curl_exit_code -ne 0 ]]; then
             warning "Failed to check status (attempt $attempt)"
         else
             # Store the response for potential return
@@ -628,8 +631,8 @@ except Exception as e:
                         cat "$final_response_file"
                     fi
                     echo ""
-                    # Return the path to the final response file so caller can access the data
-                    echo "$final_response_file"
+                    # Store the response file path in a global variable
+                    export ASYNC_RESPONSE_FILE="$final_response_file"
                     return 0
                     ;;
                 1)
@@ -662,15 +665,17 @@ ask_user_choice() {
     local default="${2:-n}"
     
     if [[ "$default" == "y" ]]; then
-        prompt="$question (Y/n): "
+        prompt="${question} (Y/n): "
     else
-        prompt="$question (y/N): "
+        prompt="${question} (y/N): "
     fi
     
+    echo -e "${YELLOW}❓ ${prompt}${NC}"
     while true; do
-        read -p "$prompt" -r
+        read -r REPLY
         if [[ -z "$REPLY" ]]; then
             REPLY="$default"
+            echo -e "${BLUE}Using default: $default${NC}"
         fi
         case $REPLY in
             [Yy]|[Yy][Ee][Ss])
@@ -680,7 +685,8 @@ ask_user_choice() {
                 return 1
                 ;;
             *)
-                echo "Please answer yes (y) or no (n)."
+                echo -e "${RED}Please answer yes (y) or no (n).${NC}"
+                echo -e "${YELLOW}❓ ${prompt}${NC}"
                 ;;
         esac
     done
