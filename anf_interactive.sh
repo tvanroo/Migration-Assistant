@@ -1,6 +1,13 @@
 #!/bin/bash
 # Azure NetApp Files Migration Assistant - Interactive Step-by-Step Mode
 # Execute each REST API call individually with result inspection
+#
+# ASYNC RESPONSE DATA HANDLING:
+# - When async operations complete, their final response data is stored automatically
+# - Access via: get_last_async_response_data (full JSON)
+# - Access via: get_async_response_field "field.path" (specific field)
+# - Persistent storage: .last_async_response file
+# - Clear with: clear_async_response_data
 
 set -e
 
@@ -352,7 +359,21 @@ except:
         esac
         
         if [[ "$should_monitor" == "true" ]]; then
-            monitor_async_operation "$async_url"
+            # Capture the final async response data
+            local final_response_file
+            final_response_file=$(monitor_async_operation "$async_url")
+            
+            if [[ $? -eq 0 && -n "$final_response_file" && -f "$final_response_file" ]]; then
+                # Store the final async response in a global variable for use in next steps
+                export LAST_ASYNC_RESPONSE_FILE="$final_response_file"
+                export LAST_ASYNC_RESPONSE_DATA=$(cat "$final_response_file")
+                info "Final async response data stored for use in subsequent steps"
+                
+                # Optional: Save to a persistent file for debugging
+                local persistent_file="${SCRIPT_DIR}/.last_async_response"
+                cp "$final_response_file" "$persistent_file"
+                info "Async response also saved to: $persistent_file"
+            fi
         else
             info "You can manually check status later with: curl -H \"Authorization: Bearer \$(cat .token)\" \"$async_url\""
         fi
@@ -509,11 +530,14 @@ except Exception as e:
     return 0
 }
 
-# Monitor async operation status
+# Monitor async operation status and return final response data
 monitor_async_operation() {
     local async_url="$1"
     local max_attempts=120  # 2 hours with 1-minute intervals
     local attempt=1
+    
+    # Create temp file to store final response data
+    local final_response_file=$(mktemp)
     
     info "Monitoring asynchronous operation..."
     info "Will check every 60 seconds (max 2 hours)"
@@ -534,6 +558,9 @@ monitor_async_operation() {
         if [[ $? -ne 0 ]]; then
             warning "Failed to check status (attempt $attempt)"
         else
+            # Store the response for potential return
+            echo "$status_response" > "$final_response_file"
+            
             # Temporarily disable set -e to prevent script exit on non-zero Python exit codes
             set +e
             echo "$status_response" | python3 -c "
@@ -592,9 +619,21 @@ except Exception as e:
             case $parse_result in
                 0)
                     success "Operation completed successfully!"
+                    echo ""
+                    echo -e "${CYAN}Final Async Response Data:${NC}"
+                    # Pretty print the final response
+                    if cat "$final_response_file" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+                        cat "$final_response_file" | python3 -c "import json, sys; print(json.dumps(json.load(sys.stdin), indent=2))"
+                    else
+                        cat "$final_response_file"
+                    fi
+                    echo ""
+                    # Return the path to the final response file so caller can access the data
+                    echo "$final_response_file"
                     return 0
                     ;;
                 1)
+                    rm -f "$final_response_file"
                     error_exit "Operation failed or was canceled"
                     ;;
                 2)
@@ -611,8 +650,10 @@ except Exception as e:
         ((attempt++))
     done
     
+    rm -f "$final_response_file"
     warning "Monitoring timeout reached (2 hours). Operation may still be running."
     info "You can manually check status with: curl -H \"Authorization: Bearer \$(cat .token)\" \"$async_url\""
+    return 1
 }
 
 # Helper function for yes/no questions
@@ -643,6 +684,83 @@ ask_user_choice() {
                 ;;
         esac
     done
+}
+
+# Helper functions to access async response data in subsequent steps
+get_last_async_response_data() {
+    if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
+        echo "$LAST_ASYNC_RESPONSE_DATA"
+        return 0
+    elif [[ -f "${SCRIPT_DIR}/.last_async_response" ]]; then
+        cat "${SCRIPT_DIR}/.last_async_response"
+        return 0
+    else
+        warning "No async response data available"
+        return 1
+    fi
+}
+
+# Extract specific field from last async response
+get_async_response_field() {
+    local field_path="$1"
+    local response_data
+    
+    if ! response_data=$(get_last_async_response_data); then
+        return 1
+    fi
+    
+    echo "$response_data" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    field_path = '$field_path'
+    
+    # Support nested field access with dot notation (e.g., 'properties.provisioningState')
+    fields = field_path.split('.')
+    result = data
+    for field in fields:
+        if isinstance(result, dict) and field in result:
+            result = result[field]
+        else:
+            print(f'Field {field_path} not found in response', file=sys.stderr)
+            sys.exit(1)
+    
+    if isinstance(result, (dict, list)):
+        print(json.dumps(result, indent=2))
+    else:
+        print(str(result))
+except Exception as e:
+    print(f'Error extracting field {field_path}: {str(e)}', file=sys.stderr)
+    sys.exit(1)
+"
+}
+
+# Show current async response data (formatted)
+show_async_response_data() {
+    local response_data
+    
+    if response_data=$(get_last_async_response_data); then
+        echo -e "${CYAN}Current Async Response Data:${NC}"
+        if echo "$response_data" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+            echo "$response_data" | python3 -c "import json, sys; print(json.dumps(json.load(sys.stdin), indent=2))"
+        else
+            echo "$response_data"
+        fi
+        echo ""
+        info "Use get_async_response_field 'field.path' to extract specific values"
+        return 0
+    else
+        info "No async response data available"
+        return 1
+    fi
+}
+
+# Clear async response data
+clear_async_response_data() {
+    unset LAST_ASYNC_RESPONSE_DATA
+    unset LAST_ASYNC_RESPONSE_FILE
+    rm -f "${SCRIPT_DIR}/.last_async_response"
+    info "Cleared async response data"
 }
 
 # Get Azure AD token (interactive version)
