@@ -631,6 +631,51 @@ except Exception as e:
                         cat "$final_response_file"
                     fi
                     echo ""
+                    
+                    # Check if this response contains cluster peering information and display it
+                    local cluster_command
+                    local cluster_passphrase
+                    
+                    cluster_command=$(cat "$final_response_file" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    if 'properties' in data and 'clusterPeeringCommand' in data['properties']:
+        print(data['properties']['clusterPeeringCommand'])
+except:
+    pass
+" 2>/dev/null)
+                    
+                    cluster_passphrase=$(cat "$final_response_file" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    if 'properties' in data and 'passphrase' in data['properties']:
+        print(data['properties']['passphrase'])
+except:
+    pass
+" 2>/dev/null)
+                    
+                    if [[ -n "$cluster_command" && -n "$cluster_passphrase" ]]; then
+                        echo ""
+                        echo -e "${GREEN}🎉 Cluster Peering Information Extracted:${NC}"
+                        echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+                        echo -e "${CYAN}║ EXECUTE THIS COMMAND ON YOUR ON-PREMISES ONTAP SYSTEM:                      ║${NC}"
+                        echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+                        echo ""
+                        echo -e "${YELLOW}$cluster_command${NC}"
+                        echo ""
+                        echo -e "${GREEN}📋 Passphrase:${NC} ${YELLOW}$cluster_passphrase${NC}"
+                        echo ""
+                        echo -e "${BLUE}📝 Instructions:${NC}"
+                        echo "  1. Log into your on-premises ONTAP system as an administrator"
+                        echo "  2. Replace <IP-SPACE-NAME> with your IP space (usually 'Default')"
+                        echo "  3. Execute the modified command"
+                        echo "  4. When prompted, enter the passphrase above"
+                        echo "  5. Verify the command completes successfully"
+                        echo ""
+                    fi
+                    
                     # Store the response file path in a global variable
                     export ASYNC_RESPONSE_FILE="$final_response_file"
                     return 0
@@ -1197,53 +1242,97 @@ run_interactive_workflow() {
     export ANF_MONITORING_MODE="$monitoring_mode"
 }
 
-# Function to get cluster peer request result and extract cluster peering command
+# Function to display cluster peer request result (re-display information from previous step)
 get_cluster_peer_result() {
     step_header "Step: get_cluster_peer_result"
     
-    if ! confirm_step "get_cluster_peer_result" "Get cluster peer result to retrieve cluster peering command and passphrase"; then
+    if ! confirm_step "get_cluster_peer_result" "Display cluster peering command and passphrase"; then
         return 0  # Step was skipped
     fi
     
-    info "Getting cluster peer result from peer_request step..."
+    info "Displaying cluster peer information from previous step..."
+    
+    # Check for persistent async response file
+    local persistent_file="${SCRIPT_DIR}/.last_async_response"
+    if [[ -f "$persistent_file" ]]; then
+        info "Loading async response data from persistent file..."
+        export LAST_ASYNC_RESPONSE_DATA=$(cat "$persistent_file")
+    fi
     
     # Check if we have the async response data from the peer_request step
     if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
+        info "Found async response data - checking for cluster peer information..."
+        if [[ "${DEBUG:-}" == "1" ]]; then
+            info "DEBUG: Async response data: ${LAST_ASYNC_RESPONSE_DATA:0:200}..." # Show first 200 chars
+        fi
+        
         # Check if this async response already contains the cluster peer information
         local peer_command_from_async
         local passphrase_from_async
+        local python_error
         
-        peer_command_from_async=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
+        # Try to extract peer command with better error handling
+        python_error=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
-    if 'properties' in data and 'peerAcceptCommand' in data['properties']:
-        print(data['properties']['peerAcceptCommand'])
+    if 'properties' in data and 'clusterPeeringCommand' in data['properties']:
+        print(data['properties']['clusterPeeringCommand'])
     else:
+        print('NOTFOUND', file=sys.stderr)
         sys.exit(1)
-except:
+except Exception as e:
+    print(f'ERROR: {e}', file=sys.stderr)
     sys.exit(1)
-" 2>/dev/null)
+" 2>&1)
         
-        passphrase_from_async=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
+        if [[ $? -eq 0 ]]; then
+            peer_command_from_async="$python_error"
+            info "Successfully extracted peer command"
+        else
+            if [[ "${DEBUG:-}" == "1" ]]; then
+                info "DEBUG: Failed to extract peer command: $python_error"
+            fi
+        fi
+        
+        # Try to extract passphrase with better error handling
+        python_error=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
     if 'properties' in data and 'passphrase' in data['properties']:
         print(data['properties']['passphrase'])
     else:
+        print('NOTFOUND', file=sys.stderr)
         sys.exit(1)
-except:
+except Exception as e:
+    print(f'ERROR: {e}', file=sys.stderr)
     sys.exit(1)
-" 2>/dev/null)
+" 2>&1)
+        
+        if [[ $? -eq 0 ]]; then
+            passphrase_from_async="$python_error"
+            info "Successfully extracted passphrase"
+        else
+            if [[ "${DEBUG:-}" == "1" ]]; then
+                info "DEBUG: Failed to extract passphrase: $python_error"
+            fi
+        fi
         
         if [[ -n "$peer_command_from_async" && -n "$passphrase_from_async" ]]; then
             info "Cluster peer command already available in async response - using cached data"
             # Set the variables for use in the display section
             peer_command="$peer_command_from_async"
             passphrase="$passphrase_from_async"
+            if [[ "${DEBUG:-}" == "1" ]]; then
+                info "DEBUG: Set peer_command and passphrase variables"
+            fi
         else
             warning "Cluster peer command not found in cached async response"
+            if [[ "${DEBUG:-}" == "1" ]]; then
+                info "DEBUG: peer_command_from_async: '${peer_command_from_async:-EMPTY}'"
+                info "DEBUG: passphrase_from_async: '${passphrase_from_async:-EMPTY}'"
+            fi
             info "This may happen if the async operation hasn't completed yet or returned different data"
             info "You can:"
             echo "  1. Check the Azure portal for the operation status"
@@ -1252,10 +1341,38 @@ except:
         fi
     else
         warning "No async response data available from peer_request step"
+        if [[ "${DEBUG:-}" == "1" ]]; then
+            info "DEBUG: LAST_ASYNC_RESPONSE_DATA is empty or not set"
+        fi
+        
+        # Check if persistent file exists but is empty
+        if [[ -f "$persistent_file" ]]; then
+            local file_size=$(wc -c < "$persistent_file" 2>/dev/null || echo "0")
+            warning "Persistent file exists but is empty or couldn't be read (size: $file_size bytes)"
+        else
+            warning "No persistent async response file found at: $persistent_file"
+        fi
+        
         info "This could happen if:"
         echo "  - The peer_request step was skipped"
         echo "  - Async monitoring was disabled"
         echo "  - The operation completed too quickly"
+        echo "  - The previous step failed or didn't complete"
+        echo ""
+        echo "To resolve this issue:"
+        echo "  1. Go back and ensure the peer_request step completed successfully"
+        echo "  2. Make sure async monitoring was enabled"
+        echo "  3. Check the Azure portal for the operation status"
+        echo ""
+        
+        # Don't proceed with empty data
+        warning "Cannot extract cluster peer command without async response data"
+        info "Skipping cluster peer command extraction"
+        return 1
+    fi
+    
+    if [[ "${DEBUG:-}" == "1" ]]; then
+        info "DEBUG: Reached end of data extraction section - continuing to display section"
     fi
     
     # Display the cluster peering command and passphrase if available
