@@ -632,9 +632,10 @@ except Exception as e:
                     fi
                     echo ""
                     
-                    # Check if this response contains cluster peering information and display it
+                    # Check if this response contains cluster or SVM peering information and display it
                     local cluster_command
                     local cluster_passphrase
+                    local svm_command
                     
                     cluster_command=$(cat "$final_response_file" | python3 -c "
 import json, sys
@@ -656,6 +657,16 @@ except:
     pass
 " 2>/dev/null)
                     
+                    svm_command=$(cat "$final_response_file" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    if 'properties' in data and 'svmPeeringCommand' in data['properties']:
+        print(data['properties']['svmPeeringCommand'])
+except:
+    pass
+" 2>/dev/null)
+                    
                     if [[ -n "$cluster_command" && -n "$cluster_passphrase" ]]; then
                         echo ""
                         echo -e "${GREEN}🎉 Cluster Peering Information Extracted:${NC}"
@@ -673,6 +684,33 @@ except:
                         echo "  3. Execute the modified command"
                         echo "  4. When prompted, enter the passphrase above"
                         echo "  5. Verify the command completes successfully"
+                        echo ""
+                    fi
+                    
+                    if [[ -n "$svm_command" ]]; then
+                        echo ""
+                        echo -e "${GREEN}🎉 SVM Peering Information Extracted:${NC}"
+                        echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+                        echo -e "${CYAN}║ EXECUTE THIS COMMAND ON YOUR ON-PREMISES ONTAP SYSTEM:                      ║${NC}"
+                        echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+                        echo ""
+                        
+                        # Display the command with placeholders intact
+                        echo -e "${YELLOW}$svm_command${NC}"
+                        echo ""
+                        echo -e "${BLUE}📋 Configuration Reference Values:${NC}"
+                        local source_svm_name=$(get_config_value 'source_svm_name')
+                        local target_svm_name=$(get_config_value 'target_svm_name')
+                        echo -e "${CYAN}  on-prem-svm-name: $source_svm_name${NC}"
+                        echo -e "${CYAN}  destination-svm-name: $target_svm_name${NC}"
+                        echo ""
+                        echo -e "${CYAN}📝 Instructions:${NC}"
+                        echo "  1. Log into your on-premises ONTAP system as an administrator"
+                        echo "  2. Replace the placeholders in the command with your actual values:"
+                        echo "     - Replace 'on-prem-svm-name' with your source SVM: $source_svm_name"
+                        echo "     - Replace 'destination-svm-name' with your target SVM: $target_svm_name"
+                        echo "  3. Execute the modified command"
+                        echo "  4. Verify the command completes successfully"
                         echo ""
                     fi
                     
@@ -1439,48 +1477,69 @@ except Exception as e:
         fi
 }
 
-# Function to get async operation result and extract SVM peering command
+# Function to display SVM peering result (re-display information from previous step)
 get_async_operation_result() {
     step_header "Step: get_async_operation_result"
     
-    if ! confirm_step "get_async_operation_result" "Get async operation result to retrieve SVM peering command"; then
+    if ! confirm_step "get_async_operation_result" "Display SVM peering command"; then
         return 0  # Step was skipped
     fi
     
-    info "Getting async operation result from authorize_replication step..."
+    info "Displaying SVM peering information from previous step..."
+    
+    # Check for persistent async response file
+    local persistent_file="${SCRIPT_DIR}/.last_async_response"
+    if [[ -f "$persistent_file" ]]; then
+        info "Loading async response data from persistent file..."
+        export LAST_ASYNC_RESPONSE_DATA=$(cat "$persistent_file")
+    fi
     
     # Check if we have the async response data from the authorize_replication step
     local svm_command
     if [[ -n "$LAST_ASYNC_RESPONSE_DATA" ]]; then
-        # Check if this async response already contains the SVM peer information
+        info "Found async response data - checking for SVM peering information..."
+        
+        # Extract SVM peering command
         svm_command=$(echo "$LAST_ASYNC_RESPONSE_DATA" | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
     if 'properties' in data and 'svmPeeringCommand' in data['properties']:
         print(data['properties']['svmPeeringCommand'])
-    else:
-        sys.exit(1)
 except:
-    sys.exit(1)
+    pass
 " 2>/dev/null)
         
         if [[ -n "$svm_command" ]]; then
-            info "SVM peering command already available in async response - using cached data"
+            info "SVM peering command found in async response"
         else
             warning "SVM peering command not found in cached async response"
-            info "This may happen if the async operation hasn't completed yet or returned different data"
-            info "You can:"
-            echo "  1. Check the Azure portal for the operation status"
-            echo "  2. Wait for the operation to complete and try again"
-            echo "  3. Skip this step and proceed manually"
+            info "This may happen if:"
+            echo "  - The authorize_replication step was skipped"
+            echo "  - The async operation returned different data"
+            echo "  - The operation hasn't completed yet"
+            echo ""
+            echo "Please check the Azure portal or re-run the authorize_replication step"
+            return 1
         fi
     else
         warning "No async response data available from authorize_replication step"
+        # Check if persistent file exists but is empty
+        if [[ -f "$persistent_file" ]]; then
+            local file_size=$(wc -c < "$persistent_file" 2>/dev/null || echo "0")
+            warning "Persistent file exists but is empty or couldn't be read (size: $file_size bytes)"
+        else
+            warning "No persistent async response file found at: $persistent_file"
+        fi
+        
         info "This could happen if:"
         echo "  - The authorize_replication step was skipped"
         echo "  - Async monitoring was disabled"
         echo "  - The operation completed too quickly"
+        echo "  - The previous step failed or didn't complete"
+        echo ""
+        echo "Please go back and ensure the authorize_replication step completed successfully"
+        return 1
     fi
     
     # Display the SVM peering command if available
@@ -1503,7 +1562,8 @@ except:
             echo -e "${CYAN}📝 Instructions:${NC}"
             echo "  1. Log into your on-premises ONTAP system as an administrator"
             echo "  2. Replace the placeholders in the command with your actual values:"
-            echo "     - Replace placeholders with the SVM names shown above"
+            echo "     - Replace 'on-prem-svm-name' with your source SVM: $source_svm_name"
+            echo "     - Replace 'destination-svm-name' with your target SVM: $target_svm_name"
             echo "  3. Execute the modified command"
             echo "  4. Verify the command completes successfully"
             echo "  5. Return here and confirm completion"
