@@ -20,12 +20,6 @@ indent_size = 4
 indent_style = space
 indent_size = 4
 
-# PowerShell files (Windows line endings for compatibility)
-[*.ps1]
-end_of_line = crlf
-indent_style = space
-indent_size = 4
-
 # YAML files
 [*.{yml,yaml}]
 indent_style = space

@@ -5,7 +5,7 @@
 ### **Operating System**
 - ✅ **Linux** (Ubuntu, CentOS, RHEL, etc.)
 - ✅ **macOS** (10.14+)
-- ✅ **Windows** (10/11 with WSL, PowerShell, or Command Prompt)
+- ✅ **Windows** (10/11 with WSL or Git Bash)
 
 ### **Required Software**
 
@@ -25,7 +25,7 @@
 
 #### **4. Bash Shell**
 - **Linux/macOS**: Built-in
-- **Windows**: Use WSL, Git Bash, or PowerShell (with modifications)
+- **Windows**: Use WSL or Git Bash
 
 ## 🔐 **Azure Prerequisites**
 

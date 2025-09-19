@@ -7,7 +7,9 @@ Walks through configuring all required variables step by step
 import os
 import re
 import sys
+import shutil
 import getpass
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -52,6 +54,34 @@ class ANFSetupWizard:
         if self.config_file.exists():
             with open(self.config_file) as f:
                 return yaml.safe_load(f)
+        
+        # No config.yaml exists - check if user wants to use template
+        template_file = Path("config.template.yaml")
+        if template_file.exists():
+            print(f"\n📄 No existing configuration found at {self.config_file}")
+            print(f"🎯 Found template file: {template_file}")
+            print("\nWould you like to start with the template as a baseline?")
+            print("This will pre-populate fields with example values that you can modify.")
+            
+            while True:
+                choice = input("\nUse template as starting point? [y/n]: ").lower().strip()
+                if choice in ['y', 'yes']:
+                    print(f"✅ Loading template from {template_file}")
+                    try:
+                        with open(template_file) as f:
+                            template_config = yaml.safe_load(f)
+                            print("📋 Template loaded successfully!")
+                            return template_config
+                    except Exception as e:
+                        print(f"⚠️  Error loading template: {e}")
+                        print("Starting with blank configuration instead.")
+                        break
+                elif choice in ['n', 'no']:
+                    print("✅ Starting with blank configuration")
+                    break
+                else:
+                    print("Please enter 'y' for yes or 'n' for no")
+        
         return {'variables': {}, 'secrets': {}}
     
     def get_input(self, prompt: str, current_value: str = "", required: bool = True, 
@@ -546,8 +576,18 @@ class ANFSetupWizard:
         
         # Create backup if file exists
         if self.config_file.exists():
-            backup_file = self.config_file.with_suffix('.backup.yaml')
-            self.config_file.rename(backup_file)
+            # Create backup directory if it doesn't exist
+            backup_dir = Path("config_backups")
+            backup_dir.mkdir(exist_ok=True)
+            
+            # Create timestamped backup filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_filename = f"config.backup_{timestamp}.yaml"
+            backup_file = backup_dir / backup_filename
+            
+            # Copy the file to backup location
+            import shutil
+            shutil.copy2(self.config_file, backup_file)
             print(f"📁 Backup saved to {backup_file}")
         
         with open(self.config_file, 'w') as f:
@@ -627,17 +667,9 @@ class ANFSetupWizard:
                 
                 print(f"\n🎉 Setup completed successfully!")
                 print(f"\nNext steps:")
-                print(f"1. Validate configuration:")
-                print(f"   Linux/macOS: ./anf_runner.sh validate")
-                print(f"   Windows:     .\\anf_runner.ps1 validate")
+                print(f"1. Run interactive workflow:")
+                print(f"   ./anf_interactive.sh")
                 print(f"")
-                print(f"2. Run interactive workflow:")
-                print(f"   Linux/macOS: ./anf_interactive.sh")
-                print(f"   Windows:     .\\anf_interactive.ps1")
-                print(f"")
-                print(f"3. Check logs:")
-                print(f"   Linux/macOS: tail -f anf_migration.log")
-                print(f"   Windows:     Get-Content anf_migration.log -Wait")
                 
                 return True
                 

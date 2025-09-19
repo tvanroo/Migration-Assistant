@@ -4,7 +4,6 @@
 # Force Unix LF endings on checkout for shell scripts and Python files
 *.sh text eol=lf
 *.py text eol=lf
-*.ps1 text eol=crlf
 *.yaml text eol=lf
 *.yml text eol=lf
 *.md text eol=lf

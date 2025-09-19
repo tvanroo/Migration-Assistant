@@ -122,7 +122,7 @@ confirm_step() {
                 exit 0
                 ;;
             [Rr])
-                ./anf_workflow.sh config
+                show_config
                 echo ""
                 ;;
             *)
@@ -130,6 +130,23 @@ confirm_step() {
                 ;;
         esac
     done
+}
+
+# Show configuration summary
+show_config() {
+    local protocol=$(get_protocol)
+    local qos=$(get_qos)
+    
+    echo "📋 Current Configuration:"
+    echo "🌐 Azure Region: $(get_config_value 'target_location')"
+    echo "📁 Resource Group: $(get_config_value 'target_resource_group')" 
+    echo "🗄️  NetApp Account: $(get_config_value 'target_netapp_account')"
+    echo "📊 Capacity Pool: $(get_config_value 'target_capacity_pool')"
+    echo "💾 Volume: $(get_config_value 'target_volume_name')"
+    echo "🔌 Protocol: $protocol"
+    echo "⚡ QoS: $qos"
+    echo "🔄 Replication: $(get_config_value 'replication_schedule')"
+    echo "🖥️  Source Cluster: $(get_config_value 'source_cluster_name')"
 }
 
 # Enhanced API call with detailed response handling
@@ -1335,7 +1352,7 @@ validate_config() {
     # Validation passed - show current config
     success "Configuration is valid"
     echo ""
-    ./anf_workflow.sh config
+    show_config
 }
 
 # Show help
@@ -1420,7 +1437,7 @@ run_setup_wizard() {
             if ask_user_choice "Would you like to review the configuration?" "y"; then
                 echo ""
                 step_header "Current Configuration"
-                ./anf_workflow.sh config 2>/dev/null || echo -e "${YELLOW}Config file created but anf_workflow.sh not found for display${NC}"
+                show_config
             fi
         else
             warning "Configuration wizard exited without completing"
@@ -1679,7 +1696,7 @@ run_main_menu() {
                 ;;
             4)
                 step_header "Current Configuration"
-                ./anf_workflow.sh config 2>/dev/null || echo -e "${YELLOW}anf_workflow.sh not found${NC}"
+                show_config
                 echo ""
                 echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
                 read
@@ -1730,7 +1747,7 @@ case "${1:-menu}" in
         run_peering_setup
         ;;
     "config")
-        ./anf_workflow.sh config
+        show_config
         ;;
     "token")
         get_token
