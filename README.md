@@ -8,7 +8,39 @@ A command-line tool for managing Azure NetApp Files migration workflows with rob
 
 - **Python 3.6+** (recommended: Python 3.7+)
 - **curl** - For API calls
-- **bash** - Shell environment (Linux/macOS/WSL)
+- **bash** - Shell environment (see platform-specific setup below)
+
+### Platform-Specific Setup
+
+#### 🪟 **Windows Users**
+
+To run the `.sh` script on Windows, you need **Git Bash**:
+
+1. **Install Git for Windows** (if not already installed):
+   - Download from: <https://git-scm.com/download/win>
+   - This automatically includes Git Bash
+
+2. **Verify Git Bash is available**:
+
+   ```powershell
+   # Check from PowerShell
+   & "C:\Program Files\Git\bin\bash.exe" --version
+   ```
+
+3. **Run the migration script**:
+
+   ```powershell
+   # Option 1: From PowerShell
+   & "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
+   
+   # Option 2: Open Git Bash directly
+   # Right-click in project folder → "Git Bash Here"
+   # Then run: ./anf_interactive.sh
+   ```
+
+#### 🐧 **Linux/macOS Users**
+
+bash and curl are typically pre-installed. No additional setup needed.
 
 ### Python Dependencies
 
@@ -158,7 +190,7 @@ export ANF_MONITORING_MODE="quick"
 
 ## 📁 File Structure
 
-```
+```text
 ├── setup_wizard.py          # Interactive configuration wizard
 ├── anf_interactive.sh        # Menu-driven migration workflow
 ├── config.template.yaml     # Configuration template
