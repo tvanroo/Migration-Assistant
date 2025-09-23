@@ -2,7 +2,7 @@
 # Run this in PowerShell to verify all requirements
 
 Write-Host "🚀 Azure NetApp Files Migration Assistant - Prerequisites Check" -ForegroundColor Green
-Write-Host "=" * 70 -ForegroundColor Green
+Write-Host ("=" * 70) -ForegroundColor Green
 Write-Host ""
 
 $allGood = $true
@@ -33,10 +33,12 @@ $pythonCmd = $null
 # Test python3
 if (Get-Command python3 -ErrorAction SilentlyContinue) {
     try {
-        $version = python3 --version 2>&1
-        if ($version -like "Python *") {
+        $version = python3 --version 2>&1 | Out-String -Stream | Where-Object { $_ -like "Python *" } | Select-Object -First 1
+        if ($version -and $version -like "Python *" -and $version -notlike "*was not found*") {
             $pythonCmd = "python3"
             Write-Host "✅ python3 works: $version" -ForegroundColor Green
+        } else {
+            throw "Windows Store stub or error"
         }
     } catch {
         Write-Host "⚠️  python3 command exists but doesn't work (likely Windows Store stub)" -ForegroundColor Yellow
@@ -54,10 +56,12 @@ if (Get-Command python3 -ErrorAction SilentlyContinue) {
 # Test python
 if (-not $pythonCmd -and (Get-Command python -ErrorAction SilentlyContinue)) {
     try {
-        $version = python --version 2>&1
-        if ($version -like "Python *") {
+        $version = python --version 2>&1 | Out-String -Stream | Where-Object { $_ -like "Python *" } | Select-Object -First 1
+        if ($version -and $version -like "Python *" -and $version -notlike "*was not found*") {
             $pythonCmd = "python"
             Write-Host "✅ python works: $version" -ForegroundColor Green
+        } else {
+            throw "Windows Store stub or error"
         }
     } catch {
         Write-Host "⚠️  python command exists but doesn't work" -ForegroundColor Yellow
@@ -67,10 +71,12 @@ if (-not $pythonCmd -and (Get-Command python -ErrorAction SilentlyContinue)) {
 # Test py launcher
 if (-not $pythonCmd -and (Get-Command py -ErrorAction SilentlyContinue)) {
     try {
-        $version = py --version 2>&1
-        if ($version -like "Python *") {
+        $version = py --version 2>&1 | Out-String -Stream | Where-Object { $_ -like "Python *" } | Select-Object -First 1
+        if ($version -and $version -like "Python *" -and $version -notlike "*was not found*") {
             $pythonCmd = "py"
             Write-Host "✅ py launcher works: $version" -ForegroundColor Green
+        } else {
+            throw "Python launcher error"
         }
     } catch {
         Write-Host "⚠️  py launcher exists but doesn't work" -ForegroundColor Yellow
@@ -113,7 +119,7 @@ Write-Host ""
 Write-Host "🌐 Checking curl..." -ForegroundColor Cyan
 if (Get-Command curl -ErrorAction SilentlyContinue) {
     try {
-        $curlVersion = curl --version 2>&1 | Select-Object -First 1
+        $curlVersion = (curl --version 2>&1 | Select-Object -First 1) -join ""
         Write-Host "✅ curl available: $curlVersion" -ForegroundColor Green
     } catch {
         Write-Host "⚠️  curl command exists but may have issues" -ForegroundColor Yellow
@@ -128,7 +134,7 @@ Write-Host ""
 
 # 5. Test Git Bash + Python integration
 Write-Host "🔗 Testing Git Bash + Python integration..." -ForegroundColor Cyan
-if (Test-Path $gitBashPath -and $pythonCmd) {
+if ((Test-Path $gitBashPath) -and $pythonCmd) {
     try {
         $bashTest = & $gitBashPath -c "python --version && python -c 'import yaml; print(`"Integration test passed`")'" 2>&1
         if ($bashTest -like "*Integration test passed*") {
@@ -173,7 +179,7 @@ if (-not $pythonCmd -and (Get-Command python3 -ErrorAction SilentlyContinue -or 
     Write-Host "   The system has python commands but they don't work (Windows Store stubs)" -ForegroundColor Gray
     Write-Host ""
     
-    $choice = Read-Host "   Would you like to automatically fix this? This will:" -ForegroundColor Yellow
+    Write-Host "   Would you like to automatically fix this? This will:" -ForegroundColor Yellow
     Write-Host "   • Remove non-functional Windows Store Python stubs" -ForegroundColor Gray
     Write-Host "   • Keep all real Python installations intact" -ForegroundColor Gray
     Write-Host "   • No changes to system PATH or registry" -ForegroundColor Gray
@@ -248,7 +254,7 @@ if (-not $pythonCmd -and (Get-Command python3 -ErrorAction SilentlyContinue -or 
 }
 
 # Final result
-Write-Host "=" * 70 -ForegroundColor Green
+Write-Host ("=" * 70) -ForegroundColor Green
 if ($allGood) {
     Write-Host "🎉 ALL PREREQUISITES MET!" -ForegroundColor Green
     Write-Host ""
@@ -264,4 +270,4 @@ if ($allGood) {
     Write-Host ""
     Write-Host "💡 Tip: Run this script again after installing missing components" -ForegroundColor Cyan
 }
-Write-Host "=" * 70 -ForegroundColor Green
+Write-Host ("=" * 70) -ForegroundColor Green
