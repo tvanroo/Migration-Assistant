@@ -40,6 +40,14 @@ if (Get-Command python3 -ErrorAction SilentlyContinue) {
         }
     } catch {
         Write-Host "⚠️  python3 command exists but doesn't work (likely Windows Store stub)" -ForegroundColor Yellow
+        
+        # Check if it's the Windows Store stub
+        $python3Path = (Get-Command python3).Source
+        if ($python3Path -like "*WindowsApps*") {
+            Write-Host "   Detected Windows Store stub at: $python3Path" -ForegroundColor Gray
+            Write-Host "   💡 Fix: Run this command to remove stub:" -ForegroundColor Cyan
+            Write-Host "   Remove-Item `"$env:LOCALAPPDATA\Microsoft\WindowsApps\python3.exe`" -Force" -ForegroundColor Yellow
+        }
     }
 }
 
@@ -158,6 +166,87 @@ foreach ($file in $projectFiles) {
 
 Write-Host ""
 
+# Auto-fix option for Windows Store Python stub issue
+if (-not $pythonCmd -and (Get-Command python3 -ErrorAction SilentlyContinue -or Get-Command python -ErrorAction SilentlyContinue)) {
+    Write-Host ""
+    Write-Host "🔧 Auto-Fix Available: Windows Store Python Stub Issue" -ForegroundColor Cyan
+    Write-Host "   The system has python commands but they don't work (Windows Store stubs)" -ForegroundColor Gray
+    Write-Host ""
+    
+    $choice = Read-Host "   Would you like to automatically fix this? This will:" -ForegroundColor Yellow
+    Write-Host "   • Remove non-functional Windows Store Python stubs" -ForegroundColor Gray
+    Write-Host "   • Keep all real Python installations intact" -ForegroundColor Gray
+    Write-Host "   • No changes to system PATH or registry" -ForegroundColor Gray
+    Write-Host ""
+    $response = Read-Host "   Apply fix? (y/N)"
+    
+    if ($response -eq 'y' -or $response -eq 'Y') {
+        Write-Host ""
+        Write-Host "   🔧 Applying Windows Store Python stub fix..." -ForegroundColor Cyan
+        
+        $fixed = $false
+        
+        # Remove python3.exe stub if it exists and is problematic
+        $python3Stub = "$env:LOCALAPPDATA\Microsoft\WindowsApps\python3.exe"
+        if (Test-Path $python3Stub) {
+            try {
+                Remove-Item $python3Stub -Force -ErrorAction Stop
+                Write-Host "   ✅ Removed python3.exe stub" -ForegroundColor Green
+                $fixed = $true
+            } catch {
+                Write-Host "   ⚠️  Could not remove python3.exe stub (may need admin rights)" -ForegroundColor Yellow
+            }
+        }
+        
+        # Remove python.exe stub if it exists and is problematic
+        $pythonStub = "$env:LOCALAPPDATA\Microsoft\WindowsApps\python.exe"
+        if (Test-Path $pythonStub) {
+            try {
+                Remove-Item $pythonStub -Force -ErrorAction Stop
+                Write-Host "   ✅ Removed python.exe stub" -ForegroundColor Green
+                $fixed = $true
+            } catch {
+                Write-Host "   ⚠️  Could not remove python.exe stub (may need admin rights)" -ForegroundColor Yellow
+            }
+        }
+        
+        if ($fixed) {
+            Write-Host "   🔄 Re-testing Python after fix..." -ForegroundColor Cyan
+            
+            # Re-test Python detection
+            if (Get-Command python -ErrorAction SilentlyContinue) {
+                try {
+                    $version = python --version 2>&1
+                    if ($version -like "Python *") {
+                        $pythonCmd = "python"
+                        Write-Host "   🎉 Python now works: $version" -ForegroundColor Green
+                        $allGood = $true
+                        
+                        # Test PyYAML again
+                        try {
+                            $yamlTest = python -c "import yaml; print('PyYAML available')" 2>&1
+                            if ($yamlTest -like "*PyYAML available*") {
+                                Write-Host "   ✅ PyYAML also working!" -ForegroundColor Green
+                            }
+                        } catch {
+                            Write-Host "   ℹ️  PyYAML still needs installation: pip install PyYAML" -ForegroundColor Cyan
+                        }
+                    }
+                } catch {
+                    Write-Host "   ⚠️  Python still not working after fix" -ForegroundColor Yellow
+                }
+            }
+        } else {
+            Write-Host "   ℹ️  No stub files found to remove" -ForegroundColor Cyan
+        }
+        
+        Write-Host ""
+    } else {
+        Write-Host "   ⏭️  Skipping auto-fix" -ForegroundColor Gray
+        Write-Host ""
+    }
+}
+
 # Final result
 Write-Host "=" * 70 -ForegroundColor Green
 if ($allGood) {
@@ -172,5 +261,7 @@ if ($allGood) {
     Write-Host "❌ SOME PREREQUISITES ARE MISSING!" -ForegroundColor Red
     Write-Host ""
     Write-Host "Please fix the issues above before running the migration assistant." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "💡 Tip: Run this script again after installing missing components" -ForegroundColor Cyan
 }
 Write-Host "=" * 70 -ForegroundColor Green
