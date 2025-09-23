@@ -194,3 +194,6 @@ logs/
 
 # macOS system files
 .DS_Store
+
+# Source materials and documentation (contains proprietary/sensitive content)
+Source Materials/
