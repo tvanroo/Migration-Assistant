@@ -75,13 +75,21 @@ step_header() {
 # Read config value using Python
 get_config_value() {
     local key="$1"
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo ""
+        return 1
+    fi
+    
     $PYTHON_CMD -c "
 import yaml
-with open('$CONFIG_FILE') as f:
-    config = yaml.safe_load(f)
-    all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
-    print(all_vars.get('$key', ''))
-"
+try:
+    with open('config.yaml') as f:
+        config = yaml.safe_load(f)
+        all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
+        print(all_vars.get('$key', ''))
+except Exception:
+    print('')
+" 2>/dev/null
 }
 
 # Get protocol and QoS from config
@@ -192,7 +200,7 @@ execute_api_call() {
     # Replace variables in URL
     full_url=$(echo "$full_url" | $PYTHON_CMD -c "
 import sys, yaml
-with open('$CONFIG_FILE') as f:
+with open('config.yaml') as f:
     config = yaml.safe_load(f)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
@@ -206,7 +214,7 @@ print(url)
     if [[ -n "$data" ]]; then
         data=$(echo "$data" | $PYTHON_CMD -c "
 import sys, yaml, json
-with open('$CONFIG_FILE') as f:
+with open('config.yaml') as f:
     config = yaml.safe_load(f)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
@@ -1364,7 +1372,12 @@ validate_config() {
     info "Validating configuration..."
     
     if [[ ! -f "$CONFIG_FILE" ]]; then
-        error_exit "Configuration file $CONFIG_FILE not found"
+        error_exit "Configuration file $CONFIG_FILE not found. Please run the setup wizard first (option 1)."
+    fi
+    
+    # Test if we can actually read the config file using relative path for Python
+    if ! $PYTHON_CMD -c "import yaml; yaml.safe_load(open('config.yaml'))" 2>/dev/null; then
+        error_exit "Configuration file exists but cannot be parsed. Please run the setup wizard again (option 1)."
     fi
     
     # Validation passed - show current config
