@@ -16,6 +16,18 @@ CONFIG_FILE="${SCRIPT_DIR}/config.yaml"
 TOKEN_FILE="${SCRIPT_DIR}/.token"
 LOG_FILE="${SCRIPT_DIR}/anf_migration_interactive.log"
 
+# Detect Python command early and store globally
+# Test actual Python functionality, not just command existence
+if python3 --version >/dev/null 2>&1; then
+    PYTHON_CMD="python3"
+elif python --version >/dev/null 2>&1; then
+    PYTHON_CMD="python"
+elif py --version >/dev/null 2>&1; then
+    PYTHON_CMD="py"
+else
+    PYTHON_CMD="python"  # fallback
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -63,7 +75,7 @@ step_header() {
 # Read config value using Python
 get_config_value() {
     local key="$1"
-    python3 -c "
+    $PYTHON_CMD -c "
 import yaml
 with open('$CONFIG_FILE') as f:
     config = yaml.safe_load(f)
@@ -178,7 +190,7 @@ execute_api_call() {
     local full_url="${api_url}${endpoint}?api-version=${api_version}"
     
     # Replace variables in URL
-    full_url=$(echo "$full_url" | python3 -c "
+    full_url=$(echo "$full_url" | $PYTHON_CMD -c "
 import sys, yaml
 with open('$CONFIG_FILE') as f:
     config = yaml.safe_load(f)
@@ -192,7 +204,7 @@ print(url)
     
     # Replace variables in data if provided
     if [[ -n "$data" ]]; then
-        data=$(echo "$data" | python3 -c "
+        data=$(echo "$data" | $PYTHON_CMD -c "
 import sys, yaml, json
 with open('$CONFIG_FILE') as f:
     config = yaml.safe_load(f)
@@ -1335,7 +1347,13 @@ check_dependencies() {
     info "Checking dependencies..."
     
     command -v curl >/dev/null 2>&1 || error_exit "curl is required but not installed"
-    command -v python3 >/dev/null 2>&1 || error_exit "python3 is required but not installed"
+    command -v $PYTHON_CMD >/dev/null 2>&1 || error_exit "Python is required but not installed (tried: $PYTHON_CMD)"
+    
+    # Check if PyYAML is available
+    if ! $PYTHON_CMD -c "import yaml" 2>/dev/null; then
+        error_exit "PyYAML is required but not installed. Run: pip install PyYAML"
+    fi
+    
     command -v jq >/dev/null 2>&1 || warning "jq not found - JSON parsing will be limited"
     
     success "Dependencies check passed"
@@ -1429,7 +1447,7 @@ run_setup_wizard() {
     info "Launching configuration wizard..."
     
     if [[ -f "${SCRIPT_DIR}/setup_wizard.py" ]]; then
-        python3 "${SCRIPT_DIR}/setup_wizard.py"
+        $PYTHON_CMD "${SCRIPT_DIR}/setup_wizard.py"
         if [[ $? -eq 0 ]]; then
             success "Configuration wizard completed successfully"
             info "Config file updated: $CONFIG_FILE"
