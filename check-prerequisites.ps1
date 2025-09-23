@@ -1,6 +1,12 @@
 # Azure NetApp Files Migration Assistant - Prerequisites Checker
 # Run this in PowerShell to verify all requirements
 
+# Function to refresh environment variables without restarting PowerShell
+function Update-EnvironmentPath {
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+    Write-Host "   Environment PATH refreshed" -ForegroundColor Gray
+}
+
 Write-Host "Azure NetApp Files Migration Assistant - Prerequisites Check" -ForegroundColor Green
 Write-Host "======================================================================" -ForegroundColor Green
 Write-Host ""
@@ -81,9 +87,72 @@ if (-not $pythonCmd -and (Get-Command py -ErrorAction SilentlyContinue)) {
 
 if (-not $pythonCmd) {
     Write-Host " No working Python found!" -ForegroundColor Red
-    Write-Host "   Install from: https://python.org/downloads/" -ForegroundColor Yellow
-    Write-Host "   Make sure to check 'Add to PATH' during installation" -ForegroundColor Yellow
-    $allGood = $false
+    Write-Host ""
+    Write-Host " Auto-Install Available: Python" -ForegroundColor Cyan
+    Write-Host "   Would you like to automatically install Python? This will:" -ForegroundColor Yellow
+    Write-Host "   • Download and install the latest Python from python.org" -ForegroundColor Gray
+    Write-Host "   • Add Python to your PATH automatically" -ForegroundColor Gray
+    Write-Host "   • Install pip package manager" -ForegroundColor Gray
+    Write-Host ""
+    $response = Read-Host "   Install Python automatically? (y/N)"
+    
+    if ($response -eq 'y' -or $response -eq 'Y') {
+        Write-Host ""
+        Write-Host "   Installing Python..." -ForegroundColor Cyan
+        
+        try {
+            # Download Python installer
+            $pythonUrl = "https://www.python.org/ftp/python/3.12.6/python-3.12.6-amd64.exe"
+            $installerPath = "$env:TEMP\python-installer.exe"
+            
+            Write-Host "   Downloading Python installer..." -ForegroundColor Gray
+            Invoke-WebRequest -Uri $pythonUrl -OutFile $installerPath -ErrorAction Stop
+            
+            Write-Host "   Running Python installer..." -ForegroundColor Gray
+            # Install Python silently with PATH and pip
+            $installArgs = "/quiet InstallAllUsers=0 PrependPath=1 Include_pip=1 Include_test=0"
+            Start-Process -FilePath $installerPath -ArgumentList $installArgs -Wait -ErrorAction Stop
+            
+            Write-Host "   Cleaning up installer..." -ForegroundColor Gray
+            Remove-Item $installerPath -ErrorAction SilentlyContinue
+            
+            Write-Host "   Python installation completed!" -ForegroundColor Green
+            Write-Host "   Refreshing environment variables..." -ForegroundColor Gray
+            Update-EnvironmentPath
+            
+            # Re-test Python detection
+            Write-Host "   Testing Python installation..." -ForegroundColor Gray
+            if (Get-Command python -ErrorAction SilentlyContinue) {
+                try {
+                    $version = python --version 2>&1
+                    if ($version -like "Python *") {
+                        $pythonCmd = "python"
+                        Write-Host "   Python now works: $version" -ForegroundColor Green
+                        Write-Host "   No restart required - continuing with checks..." -ForegroundColor Green
+                    }
+                } catch {
+                    Write-Host "   Python installed but may need a PowerShell restart to work properly" -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "   Python installed but may need a PowerShell restart to work properly" -ForegroundColor Yellow
+            }
+            Write-Host ""
+            
+        } catch {
+            Write-Host "   Failed to install Python automatically: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "   Please install Python manually from: https://python.org/downloads/" -ForegroundColor Yellow
+            Write-Host "   Make sure to check 'Add to PATH' during installation" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "   Skipping Python installation" -ForegroundColor Gray
+        Write-Host "   Manual install from: https://python.org/downloads/" -ForegroundColor Yellow
+        Write-Host "   Make sure to check 'Add to PATH' during installation" -ForegroundColor Yellow
+    }
+    
+    # Only mark as failed if Python installation was declined or failed
+    if (-not $pythonCmd) {
+        $allGood = $false
+    }
 }
 
 Write-Host ""
@@ -97,13 +166,47 @@ if ($pythonCmd) {
             Write-Host " PyYAML installed: $yamlTest" -ForegroundColor Green
         } else {
             Write-Host " PyYAML not installed!" -ForegroundColor Red
-            Write-Host "   Run: pip install PyYAML" -ForegroundColor Yellow
-            $allGood = $false
+            Write-Host ""
+            Write-Host " Auto-Install Available: PyYAML" -ForegroundColor Cyan
+            $response = Read-Host "   Install PyYAML automatically? (y/N)"
+            
+            if ($response -eq 'y' -or $response -eq 'Y') {
+                Write-Host "   Installing PyYAML..." -ForegroundColor Gray
+                try {
+                    & $pythonCmd -m pip install PyYAML
+                    Write-Host "   PyYAML installed successfully!" -ForegroundColor Green
+                } catch {
+                    Write-Host "   Failed to install PyYAML: $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host "   Run manually: pip install PyYAML" -ForegroundColor Yellow
+                    $allGood = $false
+                }
+            } else {
+                Write-Host "   Skipping PyYAML installation" -ForegroundColor Gray
+                Write-Host "   Run manually: pip install PyYAML" -ForegroundColor Yellow
+                $allGood = $false
+            }
         }
     } catch {
         Write-Host " PyYAML not installed!" -ForegroundColor Red
-        Write-Host "   Run: pip install PyYAML" -ForegroundColor Yellow
-        $allGood = $false
+        Write-Host ""
+        Write-Host " Auto-Install Available: PyYAML" -ForegroundColor Cyan
+        $response = Read-Host "   Install PyYAML automatically? (y/N)"
+        
+        if ($response -eq 'y' -or $response -eq 'Y') {
+            Write-Host "   Installing PyYAML..." -ForegroundColor Gray
+            try {
+                & $pythonCmd -m pip install PyYAML
+                Write-Host "   PyYAML installed successfully!" -ForegroundColor Green
+            } catch {
+                Write-Host "   Failed to install PyYAML: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Host "   Run manually: pip install PyYAML" -ForegroundColor Yellow
+                $allGood = $false
+            }
+        } else {
+            Write-Host "   Skipping PyYAML installation" -ForegroundColor Gray
+            Write-Host "   Run manually: pip install PyYAML" -ForegroundColor Yellow
+            $allGood = $false
+        }
     }
 } else {
     Write-Host "  Skipping PyYAML check (Python not available)" -ForegroundColor Gray
