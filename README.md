@@ -112,10 +112,18 @@ python3 setup_wizard.py
 # Specific phases
 ./anf_interactive.sh setup     # Phase 1: Configuration
 ./anf_interactive.sh peering   # Phase 2: Peering setup  
-./anf_interactive.sh break     # Phase 3: Break replication
+./anf_interactive.sh break     # Phase 3: Break replication (⚠️ Under Construction)
 ```
 
+## 🚧 Development Status
 
+**Current Status:** The Migration Assistant is actively under development.
+
+- ✅ **Phase 1: Setup** - Complete and tested
+- ✅ **Phase 2: Peering** - Complete and tested  
+- ⚠️ **Phase 3: Break Replication** - Under construction
+
+> **Note:** Phases 1 and 2 are fully functional. Phase 3 (break replication) is currently being developed and tested. You can use the tool for setup and peering establishment, with the final migration step coming soon.
 
 ## 📂 Core Migration Scripts
 
@@ -155,7 +163,7 @@ This Migration Assistant focuses on two main script types for maximum cross-plat
 # Direct phase execution
 ./anf_interactive.sh setup    # Configure parameters
 ./anf_interactive.sh peering  # Set up connectivity
-./anf_interactive.sh break    # Finalize migration
+./anf_interactive.sh break    # Finalize migration (⚠️ Under Construction)
 ```
 
 ## 🔧 Configuration
@@ -190,7 +198,9 @@ The tool uses `config.yaml` for all settings. You can:
 - Set up SVM peering
 - Begin data synchronization
 
-### Phase 3: Break Replication
+### Phase 3: Break Replication ⚠️ **Under Construction**
+
+> **Note:** This phase is currently under development. The break replication functionality is being built and tested.
 
 - Perform final data transfer
 - Break replication relationship  
