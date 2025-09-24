@@ -11,7 +11,7 @@ variables:
   source_cluster_name: ONTAP-Source-Cluster-Name
   source_hostname: ONTAP-Source-DNS-Name
   source_peer_addresses: '["192.168.1.1", "192.168.1.2"]'
-  source_server_name: ONTAP-Source-SVM-Name
+  source_svm_name: ONTAP-Source-SVM-Name
   source_volume_name: ONTAP-Source-Vol-Name
   target_capacity_pool: ANF-Capacity-Pool-Name
   target_is_large_volume: 'false'

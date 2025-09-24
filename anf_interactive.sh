@@ -1195,7 +1195,7 @@ get_volume_payload() {
                 "replicationSchedule": "{{replication_schedule}}",
                 "remotePath": {
                     "externalHostName": "{{source_hostname}}",
-                    "serverName": "{{source_server_name}}",
+                    "serverName": "{{source_svm_name}}",
                     "volumeName": "{{source_volume_name}}"
                 }
             }
@@ -1227,7 +1227,7 @@ get_volume_payload() {
                 "replicationSchedule": "{{replication_schedule}}",
                 "remotePath": {
                     "externalHostName": "{{source_hostname}}",
-                    "serverName": "{{source_server_name}}",
+                    "serverName": "{{source_svm_name}}",
                     "volumeName": "{{source_volume_name}}"
                 }
             }
@@ -1261,7 +1261,7 @@ get_volume_payload() {
             "replicationSchedule":"{{replication_schedule}}",
             "remotePath":{
                "externalHostName":"{{source_hostname}}",
-               "serverName":"{{source_server_name}}",
+               "serverName":"{{source_svm_name}}",
                "volumeName":"{{source_volume_name}}"
             }
          }
@@ -1310,7 +1310,7 @@ get_volume_payload() {
             "replicationSchedule":"{{replication_schedule}}",
             "remotePath":{
                "externalHostName":"{{source_hostname}}",
-               "serverName":"{{source_server_name}}",
+               "serverName":"{{source_svm_name}}",
                "volumeName":"{{source_volume_name}}"
             }
          }
