@@ -1,90 +1,115 @@
 # Azure NetApp Files Migration Assistant
 
-A command-line tool for managing Azure NetApp Files migration workflows with robust variable management and conditional logic.
+A cross-platform command-line tool for managing Azure NetApp Files migration workflows with robust variable management and conditional logic. Built with bash scripts and Python for maximum compatibility across Windows, Linux, and macOS.
 
 ## 📋 Requirements
 
 ### System Requirements
 
 - **Python 3.6+** (recommended: Python 3.7+)
+- **PyYAML** - Python package for YAML configuration parsing
 - **curl** - For API calls
 - **bash** - Shell environment (see platform-specific setup below)
 
-### Platform-Specific Setup
+## 🚀 Quick Setup
 
-#### 🪟 **Windows Users**
+### 🪟 **Windows Users**
 
-To run the `.sh` script on Windows, you need **Git Bash**:
+#### Option 1: Automated Setup (Recommended)
 
-1. **Install Git for Windows** (if not already installed):
+```powershell
+# Download and run the automated prerequisite checker
+# This will detect and fix common issues automatically
+.\check-prerequisites.ps1
+```
+
+The prerequisite checker can automatically:
+
+- ✅ Install missing Python packages (PyYAML)
+- ✅ Fix Windows Store Python stub issues
+- ✅ Download missing Git for Windows
+- ✅ Download missing project files from GitHub
+- ✅ Provide clear guidance for manual installations
+
+#### Option 2: Manual Setup
+
+1. **Install Git for Windows** (includes Git Bash):
    - Download from: <https://git-scm.com/download/win>
-   - This automatically includes Git Bash
 
-2. **Verify Git Bash is available**:
+2. **Install Python** (if not already installed):
+   - Download from: <https://www.python.org/downloads/windows/>
+
+3. **Install PyYAML**:
 
    ```powershell
-   # Check from PowerShell
-   & "C:\Program Files\Git\bin\bash.exe" --version
+   pip install PyYAML
    ```
 
-3. **Run the migration script**:
+4. **Run the migration script**:
 
    ```powershell
-   # Option 1: From PowerShell
+   # From PowerShell
    & "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
    
-   # Option 2: Open Git Bash directly
-   # Right-click in project folder → "Git Bash Here"
-   # Then run: ./anf_interactive.sh
+   # Or open Git Bash directly and run
+   ./anf_interactive.sh
    ```
 
-#### 🐧 **Linux/macOS Users**
+### 🐧 **Linux/macOS Users**
 
-bash and curl are typically pre-installed. No additional setup needed.
-
-### Python Dependencies
+bash and curl are typically pre-installed. Install Python dependencies:
 
 ```bash
-# Install required dependencies
+# Install PyYAML
 pip install PyYAML
 
-# Or if you get permission errors:
+# Or if you get permission errors
 pip install --user PyYAML
 
-# Conda (all platforms)
+# Conda users
 conda install pyyaml
 ```
 
-### Verification
+## 🔍 Verify Installation
 
 ```bash
-# Check Python version (requires 3.6+)
-python3 --version
-
-# Test dependencies
-python3 -c "import yaml, json, sys; print('✅ All dependencies available')"
+# Check prerequisites
+python3 --version  # Should be 3.6+
+python3 -c "import yaml; print('✅ PyYAML available')"
+curl --version     # Should be available
+bash --version     # Should be available
 ```
 
-## 🚀 Quick Start
+**Windows users:** Run `.\check-prerequisites.ps1` to automatically verify all requirements.
 
-### 1. Interactive Setup
+## 🚀 Getting Started
 
-Run the setup wizard to configure your migration parameters:
+### 1. Run Prerequisites Check (Windows)
+
+```powershell
+# Automated prerequisite checking and fixing
+.\check-prerequisites.ps1
+```
+
+### 2. Interactive Setup
+
+Configure your migration parameters:
 
 ```bash
-# Run setup wizard
+# Run setup wizard (works on all platforms)
 python3 setup_wizard.py
+
+# Windows Git Bash alternative
+& "C:\Program Files\Git\bin\bash.exe" -c "python3 setup_wizard.py"
 ```
 
-### 2. Interactive Migration
-
-Execute the migration workflow step-by-step:
+### 3. Execute Migration
 
 ```bash
-# Run interactive migration (menu-driven)
+# Interactive migration with menu system
 ./anf_interactive.sh
 
-# Or run specific phases:
+# Specific phases
 ./anf_interactive.sh setup     # Phase 1: Configuration
 ./anf_interactive.sh peering   # Phase 2: Peering setup  
 ./anf_interactive.sh break     # Phase 3: Break replication
@@ -92,11 +117,26 @@ Execute the migration workflow step-by-step:
 
 
 
-## 📂 Available Scripts
+## 📂 Core Migration Scripts
 
-This Migration Assistant provides bash and Python scripts for cross-platform compatibility:
+This Migration Assistant focuses on two main script types for maximum cross-platform compatibility:
 
-### Setup & Configuration
+### 🐍 **Python Scripts (.py)**
+
+- **Universal compatibility** across Windows, Linux, and macOS
+- **Rich libraries** for YAML parsing, JSON handling, and API interactions
+- **Interactive wizards** with user-friendly prompts and validation
+
+### 🐚 **Bash Scripts (.sh)**
+
+- **Native Linux/macOS** shell environment support
+- **Windows compatibility** through Git Bash
+- **Robust workflow management** with conditional logic and error handling
+- **Direct system integration** for file operations and process management
+
+### Available Scripts
+
+#### Setup & Configuration
 
 - `setup_wizard.py` - Interactive configuration wizard
 
@@ -192,11 +232,19 @@ export ANF_MONITORING_MODE="quick"
 
 ```text
 ├── setup_wizard.py          # Interactive configuration wizard
-├── anf_interactive.sh        # Menu-driven migration workflow
+├── anf_interactive.sh        # Main migration workflow (bash script)
+├── check-prerequisites.ps1  # Windows prerequisite checker with auto-fix
 ├── config.template.yaml     # Configuration template
-├── config_backups/         # Backup storage (auto-created)
-└── README.md               # This file
+├── config_backups/          # Backup storage (auto-created)
+├── validate_variables.py    # Configuration validation utilities
+└── README.md                # This file
 ```
+
+### Core Files
+
+- **`anf_interactive.sh`** - Cross-platform bash script for migration workflows
+- **`setup_wizard.py`** - Python configuration wizard for easy setup
+- **`check-prerequisites.ps1`** - Windows PowerShell script for automated prerequisite checking and fixing
 
 ## 🔒 Security Notes
 
@@ -207,7 +255,23 @@ export ANF_MONITORING_MODE="quick"
 
 ## 🆘 Troubleshooting
 
-### Common Issues
+### Windows Users - Quick Fix
+
+For Windows users experiencing setup issues, run the automated prerequisite checker:
+
+```powershell
+.\check-prerequisites.ps1
+```
+
+This will automatically detect and fix common issues like:
+
+- Missing or broken Python installations
+- Windows Store Python stub problems  
+- Missing PyYAML package
+- Missing Git for Windows
+- Missing project files
+
+### Common Issues (All Platforms)
 
 1. **"curl: command not found"**
 
