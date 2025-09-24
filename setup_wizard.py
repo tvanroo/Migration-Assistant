@@ -9,6 +9,7 @@ import re
 import sys
 import shutil
 import getpass
+import platform
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -434,7 +435,7 @@ class ANFSetupWizard:
         current_subnet = existing.get('variables', {}).get('target_subnet_id', '')
         print("\n💡 Volume subnet format: /subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}/subnets/{subnet}")
         self.config['variables']['target_subnet_id'] = self.get_input(
-            "Volume Subnet ID", 
+            "Volume Subnet ID (get the SUBNET, not vNet ID.)", 
             current_subnet, 
             required=True
         )
@@ -514,7 +515,7 @@ class ANFSetupWizard:
         
         current_hostname = existing.get('variables', {}).get('source_hostname', '')
         self.config['variables']['source_hostname'] = self.get_input(
-            "Source External Host Name/IP", 
+            "Source External Host Name (e.g. SERVERNAME)", 
             current_hostname, 
             required=True
         )
@@ -668,7 +669,25 @@ class ANFSetupWizard:
                 print(f"\n🎉 Setup completed successfully!")
                 print(f"\nNext steps:")
                 print(f"1. Run interactive workflow:")
-                print(f"   ./anf_interactive.sh")
+                
+                # Provide platform-specific instructions
+                if platform.system() == "Windows":
+                    # Check if Git Bash is available in the standard location
+                    git_bash_path = Path("C:\\Program Files\\Git\\bin\\bash.exe")
+                    if git_bash_path.exists():
+                        print(f"   # For Windows PowerShell:")
+                        print(f"   & \"C:\\Program Files\\Git\\bin\\bash.exe\" -c \"./anf_interactive.sh\"")
+                        print(f"")
+                        print(f"   # Or open Git Bash directly and run:")
+                        print(f"   ./anf_interactive.sh")
+                    else:
+                        print(f"   # Install Git for Windows first, then run:")
+                        print(f"   & \"C:\\Program Files\\Git\\bin\\bash.exe\" -c \"./anf_interactive.sh\"")
+                        print(f"   # Or use Git Bash: ./anf_interactive.sh")
+                else:
+                    # Linux/macOS instructions
+                    print(f"   ./anf_interactive.sh")
+                
                 print(f"")
                 
                 return True
