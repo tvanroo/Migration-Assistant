@@ -746,7 +746,10 @@ except:
                         echo "  1. Log into your on-premises ONTAP system as an administrator"
                         echo "  2. Execute the command as shown (no placeholders to replace)"
                         echo "  3. Verify the command completes successfully"
-                        echo "  4. Return here and confirm completion"
+                        echo "  4. Confirm the snapmirror relationship is healthy using:"
+                        echo -e "${YELLOW}     snapmirror show -fields healthy -destination-path $target_svm_name:$(get_config_value 'target_volume_name')${NC}"
+                        echo "     (Should show 'healthy: true' in the output)"
+                        echo "  5. Return here and confirm completion"
                         echo ""
                         
                         # Wait for user confirmation
