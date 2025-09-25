@@ -561,6 +561,445 @@ except Exception as e:
     return 0
 }
 
+# Monitor replication status with metrics and transfer rate calculations
+monitor_replication_status() {
+    local volume_name="$1"
+    local max_checks=${2:-30}  # Default 30 checks (30 minutes)
+    local check_interval=60    # 1 minute intervals
+    
+    step_header "Replication Status Monitor"
+    info "Starting real-time replication monitoring for volume: $volume_name"
+    echo ""
+    echo -e "${YELLOW}📊 Note: Azure metrics typically have a 5-minute delay in updates${NC}"
+    echo -e "${BLUE}ℹ️  Monitoring will refresh every 60 seconds${NC}"
+    echo -e "${BLUE}ℹ️  Press Ctrl+C at any time to stop monitoring and continue${NC}"
+    echo ""
+    
+    # Variables to track transfer progress
+    local initial_total_bytes=0
+    local initial_timestamp=""
+    local monitoring_start_time=$(date +%s)
+    local first_measurement_taken=false
+    local check_count=0
+    
+    while [[ $check_count -lt $max_checks ]]; do
+        ((check_count++))
+        local current_time=$(date '+%H:%M:%S')
+        echo -e "${CYAN}🔍 Replication Check $check_count/$max_checks - $current_time${NC}"
+        
+        # Get fresh token
+        local token=$(cat "$TOKEN_FILE" 2>/dev/null || echo "")
+        if [[ -z "$token" ]]; then
+            warning "Token expired, getting new one..."
+            get_token
+            token=$(cat "$TOKEN_FILE")
+        fi
+        
+        # Build metrics API URLs
+        local subscription_id=$(get_config_value 'azure_subscription_id')
+        local resource_group=$(get_config_value 'target_resource_group')
+        local account_name=$(get_config_value 'target_netapp_account')
+        local pool_name=$(get_config_value 'target_capacity_pool')
+        
+        local resource_id="/subscriptions/${subscription_id}/resourceGroups/${resource_group}/providers/Microsoft.NetApp/netAppAccounts/${account_name}/capacityPools/${pool_name}/volumes/${volume_name}"
+        local metrics_base_url="https://management.azure.com${resource_id}/providers/Microsoft.Insights/metrics"
+        
+        # Get current time for metrics query (last 5 minutes to account for delay)
+        local end_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        local start_time=$(date -u -d "10 minutes ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -v-10M +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "$end_time")
+        
+        # Query replication metrics
+        local metrics_url="${metrics_base_url}?api-version=2018-01-01&metricnames=VolumeReplicationTotalTransfer,VolumeReplicationTotalProgress&timespan=${start_time}/${end_time}&interval=PT1M"
+        
+        local metrics_response=$(curl -s --max-time 30 -H "Authorization: Bearer $token" "$metrics_url" 2>/dev/null)
+        
+        if [[ $? -eq 0 && -n "$metrics_response" ]]; then
+            # Parse metrics response
+            echo "$metrics_response" | $PYTHON_CMD -c "
+import json, sys
+from datetime import datetime, timezone
+try:
+    data = json.load(sys.stdin)
+    if 'value' in data and len(data['value']) > 0:
+        for metric in data['value']:
+            metric_name = metric.get('name', {}).get('value', 'Unknown')
+            timeseries = metric.get('timeseries', [])
+            
+            if metric_name == 'VolumeReplicationTotalTransfer':
+                if timeseries and len(timeseries) > 0 and 'data' in timeseries[0]:
+                    data_points = timeseries[0]['data']
+                    if data_points:
+                        # Get the most recent data point
+                        latest_point = data_points[-1]
+                        total_bytes = latest_point.get('total', 0)
+                        timestamp = latest_point.get('timeStamp', '')
+                        
+                        # Convert bytes to human readable format
+                        if total_bytes >= 1024**4:  # TB
+                            size_str = f'{total_bytes / (1024**4):.2f} TB'
+                        elif total_bytes >= 1024**3:  # GB
+                            size_str = f'{total_bytes / (1024**3):.2f} GB'
+                        elif total_bytes >= 1024**2:  # MB
+                            size_str = f'{total_bytes / (1024**2):.2f} MB'
+                        else:
+                            size_str = f'{total_bytes} bytes'
+                        
+                        print(f'📊 Total Transferred: {size_str}')
+                        print(f'🕒 Last Update: {timestamp}')
+                        
+                        # Store for rate calculation
+                        with open('.replication_stats', 'w') as f:
+                            f.write(f'{total_bytes}|{timestamp}')
+                    else:
+                        print('📊 Total Transferred: No data available yet')
+                else:
+                    print('📊 Total Transferred: Waiting for metrics...')
+            
+            elif metric_name == 'VolumeReplicationTotalProgress':
+                if timeseries and len(timeseries) > 0 and 'data' in timeseries[0]:
+                    data_points = timeseries[0]['data']
+                    if data_points:
+                        latest_point = data_points[-1]
+                        progress_bytes = latest_point.get('total', 0)
+                        
+                        if progress_bytes >= 1024**4:  # TB
+                            progress_str = f'{progress_bytes / (1024**4):.2f} TB'
+                        elif progress_bytes >= 1024**3:  # GB
+                            progress_str = f'{progress_bytes / (1024**3):.2f} GB'
+                        elif progress_bytes >= 1024**2:  # MB
+                            progress_str = f'{progress_bytes / (1024**2):.2f} MB'
+                        else:
+                            progress_str = f'{progress_bytes} bytes'
+                        
+                        print(f'📈 Progress: {progress_str}')
+    else:
+        print('📊 Metrics: No data available (may be too early or metrics delay)')
+        
+except Exception as e:
+    print(f'📊 Metrics: Error parsing response - {str(e)}')
+    print('Raw response (first 100 chars):')
+    raw = sys.stdin.read()[:100]
+    print(raw)
+" 2>/dev/null
+            
+            # Calculate average transfer rate since monitoring started
+            if [[ -f ".replication_stats" ]]; then
+                local stats_line=$(cat ".replication_stats" 2>/dev/null)
+                local current_bytes=$(echo "$stats_line" | cut -d'|' -f1)
+                local current_timestamp=$(echo "$stats_line" | cut -d'|' -f2)
+                
+                if [[ "$first_measurement_taken" == "false" && -n "$current_bytes" && "$current_bytes" != "0" ]]; then
+                    # Store initial measurement for average calculation
+                    initial_total_bytes=$current_bytes
+                    initial_timestamp="$current_timestamp"
+                    first_measurement_taken=true
+                    echo -e "${BLUE}🏁 Baseline established: Starting average rate calculation${NC}"
+                elif [[ "$first_measurement_taken" == "true" && -n "$current_bytes" && "$current_bytes" != "$initial_total_bytes" ]]; then
+                    # Calculate average transfer rate since monitoring started
+                    local bytes_transferred=$((current_bytes - initial_total_bytes))
+                    local current_time=$(date +%s)
+                    local elapsed_seconds=$((current_time - monitoring_start_time))
+                    
+                    if [[ $elapsed_seconds -gt 0 && $bytes_transferred -gt 0 ]]; then
+                        local avg_bytes_per_sec=$((bytes_transferred / elapsed_seconds))
+                        local avg_mbps=$(echo "scale=2; $avg_bytes_per_sec * 8 / 1024 / 1024" | bc 2>/dev/null || echo "0")
+                        local avg_mb_per_sec=$(echo "scale=2; $avg_bytes_per_sec / 1024 / 1024" | bc 2>/dev/null || echo "0")
+                        
+                        # Calculate elapsed time in human readable format
+                        local hours=$((elapsed_seconds / 3600))
+                        local minutes=$(((elapsed_seconds % 3600) / 60))
+                        local seconds=$((elapsed_seconds % 60))
+                        
+                        local elapsed_str=""
+                        if [[ $hours -gt 0 ]]; then
+                            elapsed_str="${hours}h ${minutes}m ${seconds}s"
+                        elif [[ $minutes -gt 0 ]]; then
+                            elapsed_str="${minutes}m ${seconds}s"
+                        else
+                            elapsed_str="${seconds}s"
+                        fi
+                        
+                        # Format transferred amount
+                        local transferred_str=""
+                        if [[ $bytes_transferred -ge $((1024**3)) ]]; then  # GB
+                            transferred_str=$(echo "scale=2; $bytes_transferred / (1024^3)" | bc 2>/dev/null || echo "$(($bytes_transferred / 1073741824)) GB")
+                        elif [[ $bytes_transferred -ge $((1024**2)) ]]; then  # MB
+                            transferred_str=$(echo "scale=2; $bytes_transferred / (1024^2)" | bc 2>/dev/null || echo "$(($bytes_transferred / 1048576)) MB")
+                        else
+                            transferred_str="$bytes_transferred bytes"
+                        fi
+                        
+                        echo -e "${GREEN}🚀 Average Transfer Rate: ${avg_mb_per_sec} MB/s (${avg_mbps} Mbps)${NC}"
+                        echo -e "${GREEN}📈 Total Progress: ${transferred_str} in ${elapsed_str}${NC}"
+                    else
+                        echo -e "${YELLOW}🚀 Average Transfer Rate: Calculating... (need more time)${NC}"
+                    fi
+                elif [[ "$first_measurement_taken" == "true" ]]; then
+                    echo -e "${YELLOW}🚀 Average Transfer Rate: No new data since baseline${NC}"
+                fi
+            fi
+        else
+            warning "Failed to retrieve metrics (attempt $check_count)"
+        fi
+        
+        echo ""
+        
+        # Check if user wants to stop monitoring
+        if [[ $check_count -lt $max_checks ]]; then
+            echo -e "${BLUE}⏳ Next check in 60 seconds... (Press Ctrl+C to stop monitoring)${NC}"
+            
+            # Use timeout to allow interruption
+            timeout 60 sleep 60 2>/dev/null || sleep 60
+        fi
+    done
+    
+    # Cleanup temp file
+    rm -f ".replication_stats" 2>/dev/null
+    
+    echo ""
+    echo -e "${GREEN}✅ Replication monitoring completed${NC}"
+    echo -e "${BLUE}💡 You can continue monitoring in the Azure Portal or restart this monitor anytime${NC}"
+}
+
+# List all replication volumes and let user select one to monitor
+list_replication_volumes() {
+    step_header "Available Replication Volumes"
+    
+    info "Discovering replication volumes in your NetApp account..."
+    
+    # Get fresh token
+    get_token_interactive
+    
+    local token=$(cat "$TOKEN_FILE" 2>/dev/null || echo "")
+    local subscription_id=$(get_config_value 'azure_subscription_id')
+    local resource_group=$(get_config_value 'target_resource_group')
+    local account_name=$(get_config_value 'target_netapp_account')
+    
+    # List all capacity pools in the account
+    local pools_url="https://management.azure.com/subscriptions/${subscription_id}/resourceGroups/${resource_group}/providers/Microsoft.NetApp/netAppAccounts/${account_name}/capacityPools?api-version=2025-06-01"
+    
+    info "Retrieving capacity pools..."
+    local pools_response=$(curl -s --max-time 30 -H "Authorization: Bearer $token" "$pools_url")
+    
+    if [[ $? -ne 0 ]]; then
+        error_exit "Failed to retrieve capacity pools"
+    fi
+    
+    # Parse pools and get volumes with replication
+    echo "$pools_response" | $PYTHON_CMD -c "
+import json, sys, subprocess, os
+try:
+    pools_data = json.load(sys.stdin)
+    replication_volumes = []
+    
+    if 'value' in pools_data:
+        for pool in pools_data['value']:
+            pool_name = pool.get('name', 'Unknown')
+            print(f'Checking pool: {pool_name}...', file=sys.stderr)
+            
+            # Get volumes in this pool
+            pool_resource_id = pool.get('id', '')
+            if pool_resource_id:
+                volumes_url = f'https://management.azure.com{pool_resource_id}/volumes?api-version=2025-06-01'
+                
+                # Use subprocess to call curl for volumes
+                cmd = ['curl', '-s', '--max-time', '30', 
+                       '-H', 'Authorization: Bearer $token'.replace('$token', os.environ.get('ANF_TOKEN', '')), 
+                       volumes_url]
+                
+                try:
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                    if result.returncode == 0:
+                        volumes_data = json.loads(result.stdout)
+                        
+                        if 'value' in volumes_data:
+                            for volume in volumes_data['value']:
+                                # Check if volume has replication configured
+                                properties = volume.get('properties', {})
+                                data_protection = properties.get('dataProtection', {})
+                                replication = data_protection.get('replication', {})
+                                
+                                if replication and properties.get('volumeType') == 'Migration':
+                                    volume_name = volume.get('name', 'Unknown')
+                                    creation_token = properties.get('creationToken', '')
+                                    remote_path = replication.get('remotePath', {})
+                                    source_volume = remote_path.get('volumeName', 'Unknown')
+                                    source_server = remote_path.get('serverName', 'Unknown')
+                                    replication_schedule = replication.get('replicationSchedule', 'Unknown')
+                                    
+                                    replication_volumes.append({
+                                        'volume_name': creation_token or volume_name.split('/')[-1],
+                                        'full_name': volume_name,
+                                        'source_volume': source_volume,
+                                        'source_server': source_server,
+                                        'schedule': replication_schedule,
+                                        'pool_name': pool_name
+                                    })
+                                    
+                except Exception as e:
+                    print(f'Error checking volumes in pool {pool_name}: {str(e)}', file=sys.stderr)
+    
+    if replication_volumes:
+        print(f'Found {len(replication_volumes)} replication volume(s):')
+        print('')
+        for i, vol in enumerate(replication_volumes, 1):
+            print(f'{i}. Volume: {vol[\"volume_name\"]}')
+            print(f'   Source: {vol[\"source_volume\"]} (from {vol[\"source_server\"]})')
+            print(f'   Schedule: {vol[\"schedule\"]}')
+            print(f'   Pool: {vol[\"pool_name\"]}')
+            print('')
+        
+        # Store the list for selection
+        with open('.replication_volumes_list', 'w') as f:
+            json.dump(replication_volumes, f)
+        
+        sys.exit(0)
+    else:
+        print('No replication volumes found.')
+        print('Make sure you have completed the peering setup phase for at least one migration.')
+        sys.exit(1)
+        
+except Exception as e:
+    print(f'Error listing replication volumes: {str(e)}')
+    print('Raw response (first 200 chars):')
+    raw = sys.stdin.read()
+    print(raw[:200])
+    sys.exit(2)
+" 2>/dev/null
+    
+    local list_result=$?
+    case $list_result in
+        0)
+            return 0  # Success, volumes found
+            ;;
+        1)
+            warning "No replication volumes found"
+            return 1
+            ;;
+        2)
+            error_exit "Failed to parse volume information"
+            ;;
+    esac
+}
+
+# Standalone replication monitoring workflow
+run_replication_monitor_standalone() {
+    check_dependencies
+    validate_config
+    
+    step_header "Replication Status Monitor"
+    
+    info "This tool monitors the replication status of existing Azure NetApp Files migrations."
+    echo ""
+    
+    # Set token in environment for Python subprocess
+    local token=$(cat "$TOKEN_FILE" 2>/dev/null || echo "")
+    export ANF_TOKEN="$token"
+    
+    # List available replication volumes
+    if ! list_replication_volumes; then
+        echo ""
+        echo "To use this monitoring tool:"
+        echo "1. Complete the peering setup phase first (run: ./anf_interactive.sh peering)"
+        echo "2. Wait a few minutes for replication to start"
+        echo "3. Then run this monitor again"
+        exit 1
+    fi
+    
+    # Let user select which volume to monitor
+    echo -e "${BLUE}Select a replication volume to monitor:${NC}"
+    
+    local selected_volume=""
+    local selected_name=""
+    
+    while true; do
+        read -p "Enter volume number (1-N): " volume_choice
+        
+        if [[ "$volume_choice" =~ ^[0-9]+$ ]]; then
+            # Extract selected volume info
+            selected_info=$($PYTHON_CMD -c "
+import json
+try:
+    with open('.replication_volumes_list', 'r') as f:
+        volumes = json.load(f)
+    
+    choice = int('$volume_choice') - 1
+    if 0 <= choice < len(volumes):
+        vol = volumes[choice]
+        print(f\"{vol['volume_name']}|{vol['source_volume']}\")
+    else:
+        print('INVALID')
+except:
+    print('ERROR')
+")
+            
+            if [[ "$selected_info" == "INVALID" ]]; then
+                warning "Invalid selection. Please try again."
+                continue
+            elif [[ "$selected_info" == "ERROR" ]]; then
+                error_exit "Error reading volume list"
+            else
+                selected_volume=$(echo "$selected_info" | cut -d'|' -f1)
+                selected_name=$(echo "$selected_info" | cut -d'|' -f2)
+                break
+            fi
+        else
+            warning "Please enter a valid number."
+        fi
+    done
+    
+    # Clean up temp files
+    rm -f ".replication_volumes_list" 2>/dev/null
+    unset ANF_TOKEN
+    
+    echo ""
+    success "Selected volume: $selected_volume (source: $selected_name)"
+    echo ""
+    
+    # Ask for monitoring duration
+    echo "How long would you like to monitor? (default: 30 minutes)"
+    echo "1. 15 minutes"
+    echo "2. 30 minutes (default)"
+    echo "3. 60 minutes"
+    echo "4. 120 minutes (2 hours)"
+    echo "5. Custom duration"
+    
+    local monitor_duration=30
+    read -p "Enter choice [1-5] (default: 2): " duration_choice
+    
+    case "${duration_choice:-2}" in
+        1) monitor_duration=15 ;;
+        2) monitor_duration=30 ;;
+        3) monitor_duration=60 ;;
+        4) monitor_duration=120 ;;
+        5) 
+            while true; do
+                read -p "Enter duration in minutes: " custom_duration
+                if [[ "$custom_duration" =~ ^[0-9]+$ ]] && [[ $custom_duration -gt 0 ]]; then
+                    monitor_duration=$custom_duration
+                    break
+                else
+                    warning "Please enter a valid number of minutes."
+                fi
+            done
+            ;;
+        *) monitor_duration=30 ;;
+    esac
+    
+    echo ""
+    info "Starting replication monitoring for $monitor_duration minutes..."
+    echo -e "${YELLOW}Note: Press Ctrl+C at any time to stop monitoring${NC}"
+    echo ""
+    
+    # Start monitoring
+    monitor_replication_status "$selected_volume" "$monitor_duration"
+    
+    echo ""
+    echo -e "${GREEN}🎉 Monitoring session completed!${NC}"
+    echo ""
+    echo "To monitor again, run: ./anf_interactive.sh monitor"
+}
+
 # Monitor async operation status and return final response data
 monitor_async_operation() {
     local async_url="$1"
@@ -808,6 +1247,20 @@ except:
                                 echo "  • Breaking replication makes the Azure volume writable but stops sync from on-premises"
                                 echo "  • Plan your cutover carefully to minimize downtime"
                                 echo ""
+                                
+                                # Optional replication monitoring
+                                if ask_user_choice "Would you like to monitor the replication status now? (Shows transfer progress and speed)" "n"; then
+                                    local target_volume_name=$(get_config_value 'target_volume_name')
+                                    echo ""
+                                    info "Starting replication monitoring..."
+                                    echo -e "${YELLOW}Note: You can stop monitoring at any time with Ctrl+C${NC}"
+                                    echo ""
+                                    monitor_replication_status "$target_volume_name" 30  # Monitor for up to 30 minutes
+                                else
+                                    info "Skipping replication monitoring - you can check progress in Azure Portal"
+                                fi
+                                echo ""
+                                
                                 echo -e "${GREEN}✅ Setup phase completed successfully!${NC}"
                                 echo -e "${BLUE}📝 Detailed logs are available in: $LOG_FILE${NC}"
                                 echo ""
@@ -1366,6 +1819,7 @@ show_help() {
     echo "  setup    - Run setup wizard configuration"
     echo "  peering  - Run peering setup (volume creation through SVM peering)"
     echo "  break    - Run break replication workflow (finalize migration)"
+    echo "  monitor  - Monitor replication status for existing migrations"
     echo "  config   - Show current configuration"
     echo "  token    - Get authentication token only"
     echo "  help     - Show this help message"
@@ -1411,9 +1865,13 @@ show_main_menu() {
     echo -e "${YELLOW}     Complete the migration by breaking replication and making volume writable${NC}"
     echo -e "${YELLOW}     (Run this after data sync is complete)${NC}"
     echo ""
-    echo -e "${PURPLE}  4. Show Current Configuration${NC}"
-    echo -e "${PURPLE}  5. Get Authentication Token Only${NC}"
-    echo -e "${PURPLE}  6. Help${NC}"
+    echo -e "${CYAN}  4. Monitor Replication Status${NC}"
+    echo -e "${YELLOW}     Check transfer progress and speed for existing migrations${NC}"
+    echo -e "${YELLOW}     (Select from available replication volumes)${NC}"
+    echo ""
+    echo -e "${PURPLE}  5. Show Current Configuration${NC}"
+    echo -e "${PURPLE}  6. Get Authentication Token Only${NC}"
+    echo -e "${PURPLE}  7. Help${NC}"
     echo -e "${PURPLE}  q. Quit${NC}"
     echo ""
 }
@@ -1594,6 +2052,30 @@ run_break_replication() {
         return 0
     fi
     
+    # Phase 3 - Interaction Level Configuration
+    step_header "Break Replication & Finalization Workflow"
+    echo -e "${BLUE}🔧 Interaction Level Configuration${NC}"
+    echo "Choose your preferred level of interaction during this workflow:"
+    echo ""
+    echo "  [M] Minimal - Auto-continue through most steps (faster, experienced users)"
+    echo "  [F] Full - Step-by-step prompts for each operation (default)"
+    echo ""
+    
+    local interaction_choice
+    read -p "Choose interaction level [M/F]: " interaction_choice
+    
+    case "${interaction_choice,,}" in
+        m|minimal)
+            export ANF_INTERACTION_MODE="minimal"
+            info "✅ Using minimal interaction mode - will auto-continue through most steps"
+            ;;
+        *)
+            export ANF_INTERACTION_MODE="full"
+            info "✅ Using full interaction mode - step-by-step prompts"
+            ;;
+    esac
+    echo ""
+
     # Always refresh authentication token for break replication
     # (tokens likely expired since initial setup)
     info "Refreshing authentication token for break replication workflow..."
@@ -1651,7 +2133,7 @@ run_break_replication() {
 run_main_menu() {
     while true; do
         show_main_menu
-        read -p "Enter your choice [1-6/q]: " -r
+        read -p "Enter your choice [1-7/q]: " -r
         echo ""
         
         case $REPLY in
@@ -1674,20 +2156,26 @@ run_main_menu() {
                 read
                 ;;
             4)
+                run_replication_monitor_standalone
+                echo ""
+                echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
+                read
+                ;;
+            5)
                 step_header "Current Configuration"
                 show_config
                 echo ""
                 echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
                 read
                 ;;
-            5)
+            6)
                 step_header "Authentication Token"
                 get_token
                 echo ""
                 echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
                 read
                 ;;
-            6|"help"|"--help"|"-h")
+            7|"help"|"--help"|"-h")
                 show_help
                 echo ""
                 echo -e "${CYAN}Press ENTER to return to main menu...${NC}"
@@ -1698,7 +2186,7 @@ run_main_menu() {
                 exit 0
                 ;;
             *)
-                echo -e "${RED}Invalid choice. Please select 1-6 or q.${NC}"
+                echo -e "${RED}Invalid choice. Please select 1-7 or q.${NC}"
                 echo ""
                 echo -e "${CYAN}Press ENTER to continue...${NC}"
                 read
@@ -1721,6 +2209,9 @@ case "${1:-menu}" in
     "break"|"finalize")
         run_break_replication
         ;;
+    "monitor")
+        run_replication_monitor_standalone
+        ;;
     "run")
         # Legacy support - run peering setup
         run_peering_setup
@@ -1742,6 +2233,7 @@ case "${1:-menu}" in
         echo "  setup    - Run setup wizard"
         echo "  peering  - Run peering setup workflow"
         echo "  break    - Run break replication workflow"
+        echo "  monitor  - Monitor replication status"
         echo "  config   - Show current configuration"
         echo "  token    - Get authentication token"
         echo "  help     - Show help"
