@@ -14,8 +14,6 @@ variables:
   source_svm_name: ONTAP-Source-SVM-Name
   source_volume_name: ONTAP-Source-Vol-Name
   target_capacity_pool: ANF-Capacity-Pool-Name
-  target_coolness_period: '31'
-  target_cool_access: 'false'
   target_is_large_volume: 'false'
   target_location: eastus2
   target_netapp_account: ANF-Account-Name

@@ -534,37 +534,6 @@ class ANFSetupWizard:
         
         self.config['variables']['target_zones'] = zones_input
         
-        # Cool Access (Data Tiering) configuration
-        print("\n❄️  Cool Access (Data Tiering) Configuration")
-        current_cool_access = existing.get('variables', {}).get('target_cool_access', 'false')
-        cool_access = self.get_input(
-            "Enable Cool Access tiering (true/false)",
-            current_cool_access,
-            required=False
-        ).lower()
-        if cool_access not in ['true', 'false']:
-            cool_access = 'false'
-        self.config['variables']['target_cool_access'] = cool_access
-        
-        if cool_access == 'true':
-            current_coolness_period = existing.get('variables', {}).get('target_coolness_period', '31')
-            coolness_period = self.get_input(
-                "Coolness Period (days after which inactive data is tiered, 2-183)",
-                current_coolness_period,
-                required=False
-            )
-            try:
-                period = int(coolness_period)
-                if period < 2 or period > 183:
-                    print("⚠️  Coolness period must be between 2-183 days. Using default of 31 days.")
-                    coolness_period = '31'
-            except ValueError:
-                print("⚠️  Invalid coolness period. Using default of 31 days.")
-                coolness_period = '31'
-            self.config['variables']['target_coolness_period'] = coolness_period
-        else:
-            self.config['variables']['target_coolness_period'] = '31'  # Default value
-        
         # Source cluster details
         print("\n📋 Source ONTAP Cluster Information")
         
