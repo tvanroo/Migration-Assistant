@@ -123,21 +123,26 @@ confirm_step() {
     echo -e "${CYAN}📋 Next: $step_name${NC}"
     echo -e "${CYAN}$description${NC}"
     echo ""
+    echo "Options:"
+    echo "  [C] Continue (default)"
+    echo "  [w] Wait here"
+    echo "  [r] Re-run / Review config"
+    echo "  [q] Quit workflow"
+    echo ""
     
     while true; do
-        read -p "Continue with this step? [Y/n/q/r]: " -n 1 -r
+        read -p "Choose an option [C/w/r/q]: " -n 1 -r
         echo ""
         case $REPLY in
-            [Yy]|"")  # Default to yes if just ENTER is pressed
+            [Cc]|"")  # Default to continue if just ENTER is pressed
                 return 0  # Continue
                 ;;
-            [Nn])
-                warning "Skipping step: $step_name"
-                return 1  # Skip
-                ;;
-            [Qq])
-                info "Workflow terminated by user"
-                exit 0
+            [Ww])
+                echo -e "${CYAN}⏸️  Workflow paused. Press ENTER when ready to continue...${NC}"
+                read
+                echo -e "${CYAN}📋 Next: $step_name${NC}"
+                echo -e "${CYAN}$description${NC}"
+                echo ""
                 ;;
             [Rr])
                 show_config
@@ -145,9 +150,19 @@ confirm_step() {
                 echo -e "${CYAN}📋 Next: $step_name${NC}"
                 echo -e "${CYAN}$description${NC}"
                 echo ""
+                echo "Options:"
+                echo "  [C] Continue (default)"
+                echo "  [w] Wait here"
+                echo "  [r] Re-run / Review config"
+                echo "  [q] Quit workflow"
+                echo ""
+                ;;
+            [Qq])
+                info "Workflow terminated by user"
+                exit 0
                 ;;
             *)
-                echo "Press Y/ENTER to continue, N to skip, Q to quit, or R to review config"
+                echo "Invalid option. Please choose C (continue), w (wait), r (re-run), or q (quit). Press ENTER for continue."
                 ;;
         esac
     done
@@ -220,8 +235,9 @@ with open('config.yaml') as f:
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
 data = sys.stdin.read()
+
 for key, value in all_vars.items():
-    # Special handling for mapeerAddresses to support multiple IPs
+    # Special handling for peer addresses to support multiple IPs
     if key == 'source_peer_addresses' and '{{source_peer_addresses}}' in data:
         # Check if value is already a JSON array
         try:
@@ -1066,41 +1082,9 @@ except:
     # Clean up temp files
     rm -f "$response_file" "$headers_file"
     
-    # Ask user what to do next (same as other API calls)
-    echo ""
-    echo "What would you like to do next?"
-    echo "  [c] Continue to next step"
-    echo "  [w] Wait here"
-    echo "  [r] Repeat this token request"
-    echo "  [q] Quit workflow"
-    
-    while true; do
-        read -p "Choose an option [c/w/r/q]: " -n 1 -r
-        echo ""
-        case $REPLY in
-            [Cc])
-                success "Proceeding to next step"
-                return 0
-                ;;
-            [Ww])
-                echo -e "${CYAN}⏸️  Workflow paused. Press ENTER when ready to continue...${NC}"
-                read
-                return 0
-                ;;
-            [Rr])
-                warning "Repeating token request..."
-                get_token_interactive
-                return $?
-                ;;
-            [Qq])
-                info "Workflow terminated by user"
-                exit 0
-                ;;
-            *)
-                echo "Invalid option. Please choose c, w, r, or q."
-                ;;
-        esac
-    done
+    # Token request completed - no additional prompting needed
+    # The next confirm_step() call will handle user interaction
+    success "Authentication token obtained"
 }
 
 # Get Azure AD token (non-interactive version for use in API calls)
@@ -1227,7 +1211,7 @@ get_volume_payload() {
             echo '{
    "type":"Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
    "location":"{{target_location}}",
-   "zones": {{target_zones}},
+   "zones":{{target_zones}},
    "properties":{
       "volumeType":"Migration",
       "dataProtection":{
@@ -1277,7 +1261,7 @@ get_volume_payload() {
             echo '{
    "type":"Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
    "location":"{{target_location}}",
-   "zones": {{target_zones}},
+   "zones":{{target_zones}},
    "properties":{
       "volumeType":"Migration",
       "dataProtection":{

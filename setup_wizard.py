@@ -506,33 +506,35 @@ class ANFSetupWizard:
         # Availability Zone configuration
         print("\n🌐 Availability Zone Configuration")
         current_zones = existing.get('variables', {}).get('target_zones', '["1"]')
-        zones_input = self.get_input(
-            "Availability Zones (JSON array format, e.g., [\"1\"], [\"1\",\"2\"], or [] for none)",
-            current_zones,
-            required=False
-        )
-        if zones_input.strip() == '':
-            zones_input = '[]'
         
-        # Validate JSON format for zones
+        # Extract simple number from JSON array format for user-friendly display
         try:
             import json
-            parsed_zones = json.loads(zones_input)
-            if not isinstance(parsed_zones, list):
-                print("⚠️  Zones must be a JSON array. Using default [\"1\"].")
-                zones_input = '["1"]'
+            parsed_zones = json.loads(current_zones)
+            if parsed_zones and len(parsed_zones) > 0:
+                current_display = parsed_zones[0]
             else:
-                # Ensure all zone values are strings
-                for zone in parsed_zones:
-                    if not isinstance(zone, str):
-                        print("⚠️  Zone values must be strings. Using default [\"1\"].")
-                        zones_input = '["1"]'
-                        break
-        except json.JSONDecodeError:
-            print("⚠️  Invalid JSON format for zones. Using default [\"1\"].")
-            zones_input = '["1"]'
+                current_display = ""  # Empty for no zone
+        except (json.JSONDecodeError, TypeError):
+            current_display = "1"  # Default fallback
         
-        self.config['variables']['target_zones'] = zones_input
+        zone_input = self.get_input(
+            "Availability Zone (enter just the number: 1, 2, 3, or press ENTER for no specific zone)",
+            current_display,
+            required=False
+        )
+        
+        if zone_input.strip() == '':
+            zones_value = '[]'
+            print("💡 No specific availability zone - volume will be deployed regionally")
+        elif zone_input in ['1', '2', '3']:
+            zones_value = f'["{zone_input}"]'
+            print(f"💡 Zone {zone_input} selected")
+        else:
+            print("⚠️  Availability zone must be 1, 2, or 3. Using default zone 1.")
+            zones_value = '["1"]'
+        
+        self.config['variables']['target_zones'] = zones_value
         
         # Source cluster details
         print("\n📋 Source ONTAP Cluster Information")
