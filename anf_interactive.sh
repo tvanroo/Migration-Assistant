@@ -119,6 +119,13 @@ get_qos() {
 confirm_step() {
     local step_name="$1"
     local description="$2"
+    local force_prompt="${3:-false}"  # Optional third parameter to force prompting even in minimal mode
+    
+    # Check interaction mode - skip prompting in minimal mode unless forced
+    if [[ "${ANF_INTERACTION_MODE:-full}" == "minimal" && "$force_prompt" != "true" ]]; then
+        info "Auto-continuing: $step_name ($description)"
+        return 0
+    fi
     
     echo -e "${CYAN}📋 Next: $step_name${NC}"
     echo -e "${CYAN}$description${NC}"
@@ -756,14 +763,13 @@ except:
                         local source_svm_name=$(get_config_value 'source_svm_name')
                         local target_svm_name=$(get_config_value 'target_svm_name')
                         echo -e "${CYAN}  source-svm-name: $source_svm_name${NC}"
-                        echo -e "${CYAN}  target-svm-name: $target_svm_name${NC}"
                         echo ""
                         echo -e "${CYAN}📝 Instructions:${NC}"
                         echo "  1. Log into your on-premises ONTAP system as an administrator"
                         echo "  2. Execute the command as shown (no placeholders to replace)"
                         echo "  3. Verify the command completes successfully"
                         echo "  4. Confirm the snapmirror relationship is healthy using:"
-                        echo -e "${YELLOW}     snapmirror show -fields healthy -destination-path $target_svm_name:$(get_config_value 'target_volume_name')${NC}"
+                        echo -e "${YELLOW}     snapmirror show -fields healthy -destination-path <dst_svm>:$(get_config_value 'target_volume_name')${NC}"
                         echo "     (Should show 'healthy: true' in the output)"
                         echo "  5. Return here and confirm completion"
                         echo ""
@@ -1467,6 +1473,39 @@ run_peering_setup() {
         return 0
     fi
     
+    # Ask about interaction level
+    echo ""
+    echo -e "${CYAN}🔧 Interaction Level Configuration${NC}"
+    echo "Choose your preferred level of interaction during this workflow:"
+    echo ""
+    echo "  [M] Minimal - Only stop for ONTAP commands (faster, experienced users)"
+    echo "  [F] Full - Step-by-step prompts for each operation (default)"
+    echo ""
+    
+    local interaction_mode="full"
+    while true; do
+        read -p "Choose interaction level [M/F]: " -n 1 -r
+        echo ""
+        case $REPLY in
+            [Mm])
+                interaction_mode="minimal"
+                info "Minimal interaction mode - will only prompt for ONTAP command execution"
+                break
+                ;;
+            [Ff]|"")  # Default to full if just ENTER is pressed
+                interaction_mode="full"
+                info "Full interaction mode - step-by-step prompts for each operation"
+                break
+                ;;
+            *)
+                echo "Please choose M (minimal) or F (full). Press ENTER for full interaction."
+                ;;
+        esac
+    done
+    
+    # Export the interaction mode for use throughout the workflow
+    export ANF_INTERACTION_MODE="$interaction_mode"
+    
     # Use full monitoring mode by default
     local monitoring_mode="full"
     info "Using full monitoring mode for all operations"
@@ -1484,18 +1523,28 @@ run_peering_setup() {
         "Create migration target volume ($protocol with $qos QoS)" \
         "200,201,202"
     
-    # Step 3: Issue cluster peer request
+    # Step 3: Issue cluster peer request (always prompt - ONTAP commands required)
+    if [[ "${ANF_INTERACTION_MODE:-full}" == "minimal" ]]; then
+        step_header "Critical Step: Cluster Peering Setup"
+        info "This step requires ONTAP command execution - prompting regardless of interaction mode"
+        echo ""
+    fi
     execute_api_call "peer_request" "POST" \
         "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/peerExternalCluster" \
         '{"PeerClusterName":"{{source_cluster_name}}","PeerAddresses":["{{source_peer_addresses}}"]}' \
-        "Initiate cluster peering with source ONTAP system" \
+        "Initiate cluster peering with source ONTAP system (ONTAP commands required)" \
         "200,201,202"
     
-    # Step 4: Authorize external replication
+    # Step 4: Authorize external replication (always prompt - SVM peering commands required)
+    if [[ "${ANF_INTERACTION_MODE:-full}" == "minimal" ]]; then
+        step_header "Critical Step: SVM Peering Authorization"
+        info "This step requires SVM peering command execution - prompting regardless of interaction mode"
+        echo ""
+    fi
     execute_api_call "authorize_replication" "POST" \
         "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/authorizeExternalReplication" \
         "" \
-        "Authorize the external replication relationship" \
+        "Authorize the external replication relationship (SVM peering commands required)" \
         "200,201,202"
     
     # Check if migration sync was started (SVM peering completed)
