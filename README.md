@@ -112,18 +112,22 @@ python3 setup_wizard.py
 # Specific phases
 ./anf_interactive.sh setup     # Phase 1: Configuration
 ./anf_interactive.sh peering   # Phase 2: Peering setup  
-./anf_interactive.sh break     # Phase 3: Break replication (⚠️ Under Construction)
+./anf_interactive.sh break     # Phase 3: Break replication
+./anf_interactive.sh monitor   # Monitor replication status anytime
 ```
 
-## 🚧 Development Status
+## ✅ Development Status
 
-**Current Status:** The Migration Assistant is actively under development.
+**Current Status:** The Migration Assistant is feature-complete and production-ready.
 
-- ✅ **Phase 1: Setup** - Complete and tested
-- ✅ **Phase 2: Peering** - Complete and tested  
-- ⚠️ **Phase 3: Break Replication** - Under construction
+- ✅ **Phase 1: Setup** - Complete with interactive wizard and validation
+- ✅ **Phase 2: Peering** - Complete with interaction modes and optional monitoring  
+- ✅ **Phase 3: Break Replication** - Complete with interaction modes
+- ✅ **Standalone Monitoring** - Real-time replication status monitoring
+- ✅ **Cross-Platform Support** - Windows, Linux, and macOS compatibility
+- ✅ **Interaction Modes** - Minimal and Full modes for different user experience levels
 
-> **Note:** Phases 1 and 2 are fully functional. Phase 3 (break replication) is currently being developed and tested. You can use the tool for setup and peering establishment, with the final migration step coming soon.
+> **All migration phases are now complete and tested.** The tool provides a comprehensive migration workflow from initial setup through final volume activation, with flexible monitoring and user interaction options.
 
 ## 📂 Core Migration Scripts
 
@@ -160,10 +164,26 @@ This Migration Assistant focuses on two main script types for maximum cross-plat
 # Start with menu system
 ./anf_interactive.sh
 
-# Direct phase execution
+# Available menu options:
+# 1. Run Setup Wizard
+# 2. Run Peering Setup 
+# 3. Break Replication & Finalize Migration
+# 4. Monitor Replication Status
+# 5. Show Current Configuration
+# 6. Get Authentication Token Only
+# 7. Help
+```
+
+#### Direct Phase Execution
+
+```bash
 ./anf_interactive.sh setup    # Configure parameters
-./anf_interactive.sh peering  # Set up connectivity
-./anf_interactive.sh break    # Finalize migration (⚠️ Under Construction)
+./anf_interactive.sh peering  # Set up connectivity and start sync
+./anf_interactive.sh break    # Finalize migration
+./anf_interactive.sh monitor  # Monitor replication progress
+./anf_interactive.sh config   # Show current configuration
+./anf_interactive.sh token    # Get authentication token
+./anf_interactive.sh help     # Show help information
 ```
 
 ## 🔧 Configuration
@@ -186,35 +206,98 @@ The tool uses `config.yaml` for all settings. You can:
 
 ### Phase 1: Setup
 
-- Configure migration parameters
-- Generate config.yaml file
-- Validate Azure and ONTAP connectivity
+- Configure migration parameters with interactive wizard
+- Generate config.yaml file with validation
+- Test Azure and ONTAP connectivity
+- **Features**: Step-by-step guidance, configuration validation, backup management
 
 ### Phase 2: Peering Setup  
 
 - Authenticate with Azure
-- Create target volume
-- Establish cluster peering
-- Set up SVM peering
+- Create target volume with availability zones and QoS support
+- Establish cluster peering with ONTAP commands
+- Set up SVM peering and authorization
 - Begin data synchronization
+- **Features**: Interaction modes (Minimal/Full), optional real-time monitoring, consolidated prompting
 
-### Phase 3: Break Replication ⚠️ **Under Construction**
-
-> **Note:** This phase is currently under development. The break replication functionality is being built and tested.
+### Phase 3: Break Replication
 
 - Perform final data transfer
 - Break replication relationship  
 - Make target volume writable
-- Complete migration
+- Complete migration cleanup
+- **Features**: Interaction modes (Minimal/Full), safety confirmations, automated finalization
+
+### Standalone Monitoring
+
+- Discover all replication volumes automatically
+- Select volume by source name for monitoring
+- Real-time transfer progress and speed calculations
+- Average transfer rate since monitoring started
+- **Features**: Flexible duration options, Azure metrics integration, Ctrl+C interrupt support
 
 ## 🔍 Monitoring & Logging
 
-- **Interactive Mode**: Real-time progress with user confirmations
-- **Monitoring Options**: Full, Quick, or Custom monitoring levels
-- **Detailed Logs**: All API calls and responses logged
+### Real-Time Monitoring
+
+- **Interactive Mode**: Step-by-step progress with user confirmations
+- **Interaction Modes**: Choose between Minimal (auto-continue) or Full (step-by-step) modes
+- **Optional Phase 2 Monitoring**: Real-time replication progress during setup
+- **Standalone Monitoring**: Monitor any existing replication anytime with `./anf_interactive.sh monitor`
+
+### Monitoring Features
+
+- **Volume Discovery**: Automatically finds all replication volumes
+- **Source Volume Selection**: Choose which migration to monitor by source name
+- **Transfer Metrics**: Total transferred, progress, and average transfer rates
+- **Flexible Duration**: 15 minutes to 2+ hours, or custom duration
+- **Azure Metrics Integration**: Uses Azure Insights API with 5-minute delay awareness
+
+### Monitoring Levels
+
+```bash
+# Full monitoring (recommended for new users)
+export ANF_MONITORING_MODE="full"
+./anf_interactive.sh peering
+
+# Quick mode (minimal prompts for experienced users)  
+export ANF_MONITORING_MODE="quick"
+./anf_interactive.sh peering
+
+# Custom monitoring (user choice each time)
+export ANF_MONITORING_MODE="custom"
+./anf_interactive.sh peering
+```
+
+### Interaction Modes (Phase 2 & 3)
+
+```bash
+# Set interaction mode for automated workflows
+export ANF_INTERACTION_MODE="minimal"  # Auto-continue through most steps
+export ANF_INTERACTION_MODE="full"     # Step-by-step prompts (default)
+```
+
+### Logging
+
+- **Detailed Logs**: All API calls and responses logged to `anf_migration_interactive.log`
 - **Azure Portal**: Monitor replication progress and volume status
+- **Timestamped Events**: Complete audit trail of all migration activities
 
 ## 🛠️ Advanced Usage
+
+### Environment-Based Interaction Modes
+
+```bash
+# Minimal mode - Auto-continue through most steps (experienced users)
+export ANF_INTERACTION_MODE="minimal"
+./anf_interactive.sh peering
+./anf_interactive.sh break
+
+# Full mode - Step-by-step prompts (default, new users)
+export ANF_INTERACTION_MODE="full"
+./anf_interactive.sh peering
+./anf_interactive.sh break
+```
 
 ### Custom Monitoring
 
@@ -226,6 +309,21 @@ export ANF_MONITORING_MODE="full"
 # Quick mode (minimal prompts)  
 export ANF_MONITORING_MODE="quick"
 ./anf_interactive.sh peering
+
+# Custom mode (user choice each time)
+export ANF_MONITORING_MODE="custom"
+./anf_interactive.sh peering
+```
+
+### Standalone Replication Monitoring
+
+```bash
+# Monitor existing replications anytime
+./anf_interactive.sh monitor
+
+# Available in interactive menu as option 4
+./anf_interactive.sh
+# Then select: 4. Monitor Replication Status
 ```
 
 ### Configuration Management
@@ -236,6 +334,23 @@ export ANF_MONITORING_MODE="quick"
 
 # Get authentication token
 ./anf_interactive.sh token
+
+# Run setup wizard again
+./anf_interactive.sh setup
+```
+
+### Workflow Combinations
+
+```bash
+# Complete migration in sequence
+./anf_interactive.sh setup    # Configure everything
+./anf_interactive.sh peering  # Start replication
+./anf_interactive.sh monitor  # Check progress (optional)
+./anf_interactive.sh break    # Finalize migration
+
+# Quick experienced user workflow
+export ANF_INTERACTION_MODE="minimal"
+./anf_interactive.sh peering && ./anf_interactive.sh break
 ```
 
 ## 📁 File Structure
