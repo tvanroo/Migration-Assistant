@@ -20,12 +20,16 @@ LOG_FILE="${SCRIPT_DIR}/anf_migration_interactive.log"
 # Test actual Python functionality, not just command existence
 if python3 --version >/dev/null 2>&1; then
     PYTHON_CMD="python3"
+    echo "Using Python command: python3 ($(python3 --version 2>&1))"
 elif python --version >/dev/null 2>&1; then
     PYTHON_CMD="python"
+    echo "Using Python command: python ($(python --version 2>&1))"
 elif py --version >/dev/null 2>&1; then
     PYTHON_CMD="py"
+    echo "Using Python command: py ($(py --version 2>&1))"
 else
     PYTHON_CMD="python"  # fallback
+    echo "Using Python command: python (fallback - may not work)"
 fi
 
 # Colors for output
