@@ -1191,6 +1191,7 @@ get_volume_payload() {
             echo '{
     "type": "Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
     "location": "{{target_location}}",
+    "zones": {{target_zones}},
     "properties": {
         "volumeType": "Migration",
         "dataProtection": {
@@ -1208,6 +1209,8 @@ get_volume_payload() {
         "throughputMibps": "{{target_throughput_mibps}}",
         "creationToken": "{{target_volume_name}}",
         "usageThreshold": "{{target_usage_threshold}}",
+        "coolAccess": {{target_cool_access}},
+        "coolnessPeriod": {{target_coolness_period}},
         "exportPolicy": {
             "rules": []
         },
@@ -1223,6 +1226,7 @@ get_volume_payload() {
             echo '{
     "type": "Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
     "location": "{{target_location}}",
+    "zones": {{target_zones}},
     "properties": {
         "volumeType": "Migration",
         "dataProtection": {
@@ -1239,6 +1243,8 @@ get_volume_payload() {
         "serviceLevel": "{{target_service_level}}",
         "creationToken": "{{target_volume_name}}",
         "usageThreshold": "{{target_usage_threshold}}",
+        "coolAccess": {{target_cool_access}},
+        "coolnessPeriod": {{target_coolness_period}},
         "exportPolicy": {
             "rules": []
         },
@@ -1257,6 +1263,7 @@ get_volume_payload() {
             echo '{
    "type":"Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
    "location":"{{target_location}}",
+   "zones": {{target_zones}},
    "properties":{
       "volumeType":"Migration",
       "dataProtection":{
@@ -1274,6 +1281,8 @@ get_volume_payload() {
       "throughputMibps": "{{target_throughput_mibps}}",
       "creationToken":"{{target_volume_name}}",
       "usageThreshold":{{target_usage_threshold}},
+      "coolAccess": {{target_cool_access}},
+      "coolnessPeriod": {{target_coolness_period}},
       "exportPolicy":{
          "rules":[
             {
@@ -1306,6 +1315,7 @@ get_volume_payload() {
             echo '{
    "type":"Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
    "location":"{{target_location}}",
+   "zones": {{target_zones}},
    "properties":{
       "volumeType":"Migration",
       "dataProtection":{
@@ -1322,6 +1332,8 @@ get_volume_payload() {
       "serviceLevel":"{{target_service_level}}",
       "creationToken":"{{target_volume_name}}",
       "usageThreshold":{{target_usage_threshold}},
+      "coolAccess": {{target_cool_access}},
+      "coolnessPeriod": {{target_coolness_period}},
       "exportPolicy":{
          "rules":[
             {

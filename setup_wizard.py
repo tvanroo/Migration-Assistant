@@ -503,6 +503,68 @@ class ANFSetupWizard:
                 print("⚠️  Invalid QoS input. Using 'Auto' as fallback.")
                 self.config['variables']['target_throughput_mibps'] = ''
         
+        # Availability Zone configuration
+        print("\n🌐 Availability Zone Configuration")
+        current_zones = existing.get('variables', {}).get('target_zones', '["1"]')
+        zones_input = self.get_input(
+            "Availability Zones (JSON array format, e.g., [\"1\"], [\"1\",\"2\"], or [] for none)",
+            current_zones,
+            required=False
+        )
+        if zones_input.strip() == '':
+            zones_input = '[]'
+        
+        # Validate JSON format for zones
+        try:
+            import json
+            parsed_zones = json.loads(zones_input)
+            if not isinstance(parsed_zones, list):
+                print("⚠️  Zones must be a JSON array. Using default [\"1\"].")
+                zones_input = '["1"]'
+            else:
+                # Ensure all zone values are strings
+                for zone in parsed_zones:
+                    if not isinstance(zone, str):
+                        print("⚠️  Zone values must be strings. Using default [\"1\"].")
+                        zones_input = '["1"]'
+                        break
+        except json.JSONDecodeError:
+            print("⚠️  Invalid JSON format for zones. Using default [\"1\"].")
+            zones_input = '["1"]'
+        
+        self.config['variables']['target_zones'] = zones_input
+        
+        # Cool Access (Data Tiering) configuration
+        print("\n❄️  Cool Access (Data Tiering) Configuration")
+        current_cool_access = existing.get('variables', {}).get('target_cool_access', 'false')
+        cool_access = self.get_input(
+            "Enable Cool Access tiering (true/false)",
+            current_cool_access,
+            required=False
+        ).lower()
+        if cool_access not in ['true', 'false']:
+            cool_access = 'false'
+        self.config['variables']['target_cool_access'] = cool_access
+        
+        if cool_access == 'true':
+            current_coolness_period = existing.get('variables', {}).get('target_coolness_period', '31')
+            coolness_period = self.get_input(
+                "Coolness Period (days after which inactive data is tiered, 2-183)",
+                current_coolness_period,
+                required=False
+            )
+            try:
+                period = int(coolness_period)
+                if period < 2 or period > 183:
+                    print("⚠️  Coolness period must be between 2-183 days. Using default of 31 days.")
+                    coolness_period = '31'
+            except ValueError:
+                print("⚠️  Invalid coolness period. Using default of 31 days.")
+                coolness_period = '31'
+            self.config['variables']['target_coolness_period'] = coolness_period
+        else:
+            self.config['variables']['target_coolness_period'] = '31'  # Default value
+        
         # Source cluster details
         print("\n📋 Source ONTAP Cluster Information")
         
