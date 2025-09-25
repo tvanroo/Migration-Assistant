@@ -326,8 +326,8 @@ except:
     
     if [[ -n "$response_content" ]]; then
         # Try to pretty print as JSON
-        if echo "$response_content" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
-            echo "$response_content" | python3 -c "import json, sys; print(json.dumps(json.load(sys.stdin), indent=2))"
+        if echo "$response_content" | $PYTHON_CMD -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+            echo "$response_content" | $PYTHON_CMD -c "import json, sys; print(json.dumps(json.load(sys.stdin), indent=2))"
         else
             echo "$response_content"
         fi
@@ -508,7 +508,7 @@ check_volume_status() {
             # Parse the response
             # Temporarily disable set -e to prevent script exit on non-zero Python exit codes
             set +e
-            echo "$volume_response" | python3 -c "
+            echo "$volume_response" | $PYTHON_CMD -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -607,7 +607,7 @@ monitor_async_operation() {
             
             # Temporarily disable set -e to prevent script exit on non-zero Python exit codes
             set +e
-            echo "$status_response" | python3 -c "
+            echo "$status_response" | $PYTHON_CMD -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -666,8 +666,8 @@ except Exception as e:
                     echo ""
                     echo -e "${CYAN}Final Async Response Data:${NC}"
                     # Pretty print the final response
-                    if cat "$final_response_file" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
-                        cat "$final_response_file" | python3 -c "import json, sys; print(json.dumps(json.load(sys.stdin), indent=2))"
+                    if cat "$final_response_file" | $PYTHON_CMD -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+                        cat "$final_response_file" | $PYTHON_CMD -c "import json, sys; print(json.dumps(json.load(sys.stdin), indent=2))"
                     else
                         cat "$final_response_file"
                     fi
@@ -678,7 +678,7 @@ except Exception as e:
                     local cluster_passphrase
                     local svm_command
                     
-                    cluster_command=$(cat "$final_response_file" | python3 -c "
+                    cluster_command=$(cat "$final_response_file" | $PYTHON_CMD -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -688,7 +688,7 @@ except:
     pass
 " 2>/dev/null)
                     
-                    cluster_passphrase=$(cat "$final_response_file" | python3 -c "
+                    cluster_passphrase=$(cat "$final_response_file" | $PYTHON_CMD -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -698,7 +698,7 @@ except:
     pass
 " 2>/dev/null)
                     
-                    svm_command=$(cat "$final_response_file" | python3 -c "
+                    svm_command=$(cat "$final_response_file" | $PYTHON_CMD -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -925,7 +925,7 @@ get_async_response_field() {
         return 1
     fi
     
-    echo "$response_data" | python3 -c "
+    echo "$response_data" | $PYTHON_CMD -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -957,8 +957,8 @@ show_async_response_data() {
     
     if response_data=$(get_last_async_response_data); then
         echo -e "${CYAN}Current Async Response Data:${NC}"
-        if echo "$response_data" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
-            echo "$response_data" | python3 -c "import json, sys; print(json.dumps(json.load(sys.stdin), indent=2))"
+        if echo "$response_data" | $PYTHON_CMD -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+            echo "$response_data" | $PYTHON_CMD -c "import json, sys; print(json.dumps(json.load(sys.stdin), indent=2))"
         else
             echo "$response_data"
         fi
@@ -1050,7 +1050,7 @@ get_token_interactive() {
         echo -e "${CYAN}Response Body (sanitized):${NC}"
         # Parse and display token info without showing the actual token
         local token_info
-        token_info=$(echo "$response_content" | python3 -c "
+        token_info=$(echo "$response_content" | $PYTHON_CMD -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -1075,7 +1075,7 @@ except Exception as e:
     
     # Extract and store token
     local token
-    token=$(echo "$response_content" | python3 -c "
+    token=$(echo "$response_content" | $PYTHON_CMD -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -1161,7 +1161,7 @@ get_token() {
     
     # Extract token using Python
     local token
-    token=$(python3 -c "
+    token=$($PYTHON_CMD -c "
 import json
 try:
     data = json.loads('$response')
@@ -1618,11 +1618,10 @@ run_break_replication() {
         return 0
     fi
     
-    # Ensure we have a valid token
-    if [[ ! -f "$TOKEN_FILE" ]]; then
-        info "Getting authentication token..."
-        get_token
-    fi
+    # Always refresh authentication token for break replication
+    # (tokens likely expired since initial setup)
+    info "Refreshing authentication token for break replication workflow..."
+    get_token
     
     # Ask about monitoring preferences
     echo ""
