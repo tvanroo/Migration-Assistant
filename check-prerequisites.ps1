@@ -216,17 +216,26 @@ Write-Host ""
 
 # 4. Check curl
 Write-Host " Checking curl..." -ForegroundColor Cyan
-if (Get-Command curl -ErrorAction SilentlyContinue) {
+# Check for actual curl.exe binary (not PowerShell alias)
+$curlPath = Get-Command curl.exe -ErrorAction SilentlyContinue
+if ($curlPath) {
     try {
-        $curlVersion = (curl --version 2>&1 | Select-Object -First 1) -join ""
+        $curlVersion = (& $curlPath.Source --version 2>&1 | Select-Object -First 1) -join ""
         Write-Host " curl available: $curlVersion" -ForegroundColor Green
     } catch {
-        Write-Host "  curl command exists but may have issues" -ForegroundColor Yellow
+        Write-Host "  curl.exe found but version check failed" -ForegroundColor Yellow
+        Write-Host "  curl path: $($curlPath.Source)" -ForegroundColor Gray
     }
 } else {
-    Write-Host " curl not found!" -ForegroundColor Red
-    Write-Host "   curl should be built-in on Windows 10 1803+. Try updating Windows." -ForegroundColor Yellow
-    $allGood = $false
+    # Fallback: check if curl command exists (might be PowerShell alias)
+    if (Get-Command curl -ErrorAction SilentlyContinue) {
+        Write-Host "  curl command found (PowerShell alias), but curl.exe preferred for bash scripts" -ForegroundColor Yellow
+        Write-Host "   curl should be built-in on Windows 10 1803+. Try updating Windows." -ForegroundColor Yellow
+    } else {
+        Write-Host " curl not found!" -ForegroundColor Red
+        Write-Host "   curl should be built-in on Windows 10 1803+. Try updating Windows." -ForegroundColor Yellow
+        $allGood = $false
+    }
 }
 
 Write-Host ""
@@ -235,11 +244,19 @@ Write-Host ""
 Write-Host " Testing Git Bash + Python integration..." -ForegroundColor Cyan
 if ((Test-Path $gitBashPath) -and $pythonCmd) {
     try {
-        $bashTest = & $gitBashPath -c "python --version; python -c 'import yaml; print(\"Integration test passed\")'" 2>&1
-        if ($bashTest -like "*Integration test passed*") {
-            Write-Host " Git Bash + Python + PyYAML integration works!" -ForegroundColor Green
+        # Test basic Python execution first
+        $bashTest = & $gitBashPath -c "$pythonCmd --version" 2>&1
+        if ($bashTest -like "Python *") {
+            # Test PyYAML import separately to avoid quote issues
+            $yamlTest = & $gitBashPath -c "$pythonCmd -c 'import yaml'" 2>&1
+            # Empty result or just Python version means success (no error)
+            if ([string]::IsNullOrWhiteSpace($yamlTest) -or $yamlTest -like "Python *") {
+                Write-Host " Git Bash + Python + PyYAML integration works!" -ForegroundColor Green
+            } else {
+                Write-Host "  PyYAML import issue: $yamlTest" -ForegroundColor Yellow
+            }
         } else {
-            Write-Host "  Integration test had issues: $bashTest" -ForegroundColor Yellow
+            Write-Host "  Python execution issue: $bashTest" -ForegroundColor Yellow
         }
     } catch {
         Write-Host " Git Bash + Python integration failed!" -ForegroundColor Red
@@ -327,9 +344,10 @@ if (-not $pythonCmd -and ((Get-Command python3 -ErrorAction SilentlyContinue) -o
                         Write-Host "    Python now works: $version" -ForegroundColor Green
                         $allGood = $true
                         
-                        # Test PyYAML again
+                        # Test PyYAML again with the detected Python command
                         try {
-                            $yamlTest = python -c "import yaml; print('PyYAML available')" 2>&1
+                            $yamlTestCmd = "$pythonCmd -c `"import yaml; print('PyYAML available')`""
+                            $yamlTest = Invoke-Expression $yamlTestCmd 2>&1
                             if ($yamlTest -like "*PyYAML available*") {
                                 Write-Host "    PyYAML also working!" -ForegroundColor Green
                             }
