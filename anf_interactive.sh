@@ -120,24 +120,18 @@ confirm_step() {
     local step_name="$1"
     local description="$2"
     
-    echo -e "${CYAN}📋 About to execute: $step_name${NC}"
-    echo -e "${CYAN}Description: $description${NC}"
-    echo ""
-    echo "Options:"
-    echo "  [c] Continue with this step"
-    echo "  [s] Skip this step"
-    echo "  [q] Quit the workflow"
-    echo "  [r] Review current configuration"
+    echo -e "${CYAN}📋 Next: $step_name${NC}"
+    echo -e "${CYAN}$description${NC}"
     echo ""
     
     while true; do
-        read -p "What would you like to do? [c/s/q/r]: " -n 1 -r
+        read -p "Continue with this step? [Y/n/q/r]: " -n 1 -r
         echo ""
         case $REPLY in
-            [Cc])
+            [Yy]|"")  # Default to yes if just ENTER is pressed
                 return 0  # Continue
                 ;;
-            [Ss])
+            [Nn])
                 warning "Skipping step: $step_name"
                 return 1  # Skip
                 ;;
@@ -148,9 +142,12 @@ confirm_step() {
             [Rr])
                 show_config
                 echo ""
+                echo -e "${CYAN}📋 Next: $step_name${NC}"
+                echo -e "${CYAN}$description${NC}"
+                echo ""
                 ;;
             *)
-                echo "Invalid option. Please choose c, s, q, or r."
+                echo "Press Y/ENTER to continue, N to skip, Q to quit, or R to review config"
                 ;;
         esac
     done
@@ -432,41 +429,9 @@ except:
     # Clean up temp files
     rm -f "$response_file" "$headers_file"
     
-    # Ask user what to do next
-    echo ""
-    echo "What would you like to do next?"
-    echo "  [c] Continue to next step"
-    echo "  [w] Wait here (useful for long operations)"
-    echo "  [r] Repeat this API call"
-    echo "  [q] Quit workflow"
-    
-    while true; do
-        read -p "Choose an option [c/w/r/q]: " -n 1 -r
-        echo ""
-        case $REPLY in
-            [Cc])
-                success "Proceeding to next step"
-                return 0
-                ;;
-            [Ww])
-                echo -e "${CYAN}⏸️  Workflow paused. Press ENTER when ready to continue...${NC}"
-                read
-                return 0
-                ;;
-            [Rr])
-                warning "Repeating API call..."
-                execute_api_call "$step_name" "$method" "$endpoint" "$data" "$description" "$expected_status"
-                return $?
-                ;;
-            [Qq])
-                info "Workflow terminated by user"
-                exit 0
-                ;;
-            *)
-                echo "Invalid option. Please choose c, w, r, or q."
-                ;;
-        esac
-    done
+    # Auto-continue to next step (no more post-step prompts)
+    success "Step completed - proceeding to next step"
+    return 0
 }
 
 # Check volume status directly
@@ -1523,38 +1488,9 @@ run_peering_setup() {
         return 0
     fi
     
-    # Ask about monitoring preferences
-    echo ""
-    echo -e "${BLUE}📊 Monitoring Options:${NC}"
-    echo "  [f] Full monitoring - Check status for all operations (recommended)"
-    echo "  [q] Quick mode - Skip most monitoring prompts for faster execution"
-    echo "  [c] Custom - Ask for each operation individually"
-    
-    local monitoring_mode="custom"
-    while true; do
-        read -p "Choose monitoring mode [f/q/c]: " -n 1 -r
-        echo ""
-        case $REPLY in
-            [Ff])
-                monitoring_mode="full"
-                info "Using full monitoring mode"
-                break
-                ;;
-            [Qq])
-                monitoring_mode="quick"
-                info "Using quick mode - minimal monitoring"
-                break
-                ;;
-            [Cc])
-                monitoring_mode="custom"
-                info "Using custom mode - will ask for each operation"
-                break
-                ;;
-            *)
-                echo "Please choose f, q, or c"
-                ;;
-        esac
-    done
+    # Use full monitoring mode by default
+    local monitoring_mode="full"
+    info "Using full monitoring mode for all operations"
     
     export ANF_MONITORING_MODE="$monitoring_mode"
     
@@ -1635,38 +1571,9 @@ run_break_replication() {
     info "Refreshing authentication token for break replication workflow..."
     get_token
     
-    # Ask about monitoring preferences
-    echo ""
-    echo -e "${BLUE}📊 Monitoring Options:${NC}"
-    echo "  [f] Full monitoring - Check status for all operations (recommended)"
-    echo "  [q] Quick mode - Skip most monitoring prompts for faster execution"
-    echo "  [c] Custom - Ask for each operation individually"
-    
-    local monitoring_mode="full"  # Default to full for finalization steps
-    while true; do
-        read -p "Choose monitoring mode [f/q/c]: " -n 1 -r
-        echo ""
-        case $REPLY in
-            [Ff])
-                monitoring_mode="full"
-                info "Using full monitoring mode"
-                break
-                ;;
-            [Qq])
-                monitoring_mode="quick"
-                info "Using quick mode - minimal monitoring"
-                break
-                ;;
-            [Cc])
-                monitoring_mode="custom"
-                info "Using custom mode - will ask for each operation"
-                break
-                ;;
-            *)
-                echo "Please choose f, q, or c"
-                ;;
-        esac
-    done
+    # Use full monitoring mode by default
+    local monitoring_mode="full"
+    info "Using full monitoring mode for all operations"
     
     export ANF_MONITORING_MODE="$monitoring_mode"
     
