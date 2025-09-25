@@ -508,28 +508,28 @@ class ANFSetupWizard:
         
         current_cluster = existing.get('variables', {}).get('source_cluster_name', '')
         self.config['variables']['source_cluster_name'] = self.get_input(
-            "Source Cluster Name (Can be seen with 'cluster show' on ONTAP CLI)", 
+            "Source Cluster Name, case-sensitive (Can be seen with 'cluster show' on ONTAP CLI)", 
             current_cluster, 
             required=True
         )
         
         current_hostname = existing.get('variables', {}).get('source_hostname', '')
         self.config['variables']['source_hostname'] = self.get_input(
-            "Source External Host Name (Can be seen with 'dns show' on ONTAP CLI)", 
+            "Source External Host Name, case-sensitive (Can be seen with 'dns show' on ONTAP CLI)", 
             current_hostname, 
             required=True
         )
         
         current_server = existing.get('variables', {}).get('source_svm_name', '')
         self.config['variables']['source_svm_name'] = self.get_input(
-            "Source SVM Name (Can be seen with 'vserver show' on ONTAP CLI)", 
+            "Source SVM Name, case-sensitive (Can be seen with 'vserver show' on ONTAP CLI)", 
             current_server, 
             required=True
         )
         
         current_source_vol = existing.get('variables', {}).get('source_volume_name', '')
         self.config['variables']['source_volume_name'] = self.get_input(
-            "Source Volume Name (Can be seen with 'volume show' on ONTAP CLI)", 
+            "Source Volume Name, case-sensitive (Can be seen with 'volume show' on ONTAP CLI)", 
             current_source_vol, 
             required=True
         )

@@ -1362,8 +1362,6 @@ check_dependencies() {
         error_exit "PyYAML is required but not installed. Run: pip install PyYAML"
     fi
     
-    command -v jq >/dev/null 2>&1 || warning "jq not found - JSON parsing will be limited"
-    
     success "Dependencies check passed"
 }
 
