@@ -225,6 +225,8 @@ confirm_step() {
 
 # Show configuration summary
 show_config() {
+# Show configuration summary with all variables
+show_config() {
     local protocol=$(get_protocol)
     local qos=$(get_qos)
     
@@ -2418,3 +2420,4 @@ case "${1:-menu}" in
         exit 1
         ;;
 esac
+

@@ -231,99 +231,80 @@ show_config() {
     echo "📋 Current Configuration:"
     echo "📄 Config File: $CONFIG_FILE"
     
-    # Display main configuration values with icons
-    echo "🌐 Azure Region: $(get_config_value 'target_location')"
-    echo "📁 Resource Group: $(get_config_value 'target_resource_group')" 
-    echo "🗄️  NetApp Account: $(get_config_value 'target_netapp_account')"
-    echo "📊 Capacity Pool: $(get_config_value 'target_capacity_pool')"
-    echo "💾 Volume: $(get_config_value 'target_volume_name')"
+    # Add debug info
+    echo ""
+    echo "DEBUG - Testing file access:"
+    if [[ -f "$CONFIG_FILE" ]]; then
+        echo "File exists: YES"
+        echo "File size: $(stat -c%s "$CONFIG_FILE" 2>/dev/null || stat -f%z "$CONFIG_FILE" 2>/dev/null || echo "unknown") bytes"
+        echo "File readable: $([[ -r "$CONFIG_FILE" ]] && echo "YES" || echo "NO")"
+        
+        # Test python direct yaml load
+        echo ""
+        echo "Testing YAML loading directly:"
+        $PYTHON_CMD -c "
+import yaml, os, sys
+try:
+    # Use the exact path string from bash without normalization
+    config_file = r'${CONFIG_FILE}'
+    
+    # If we're on Windows and the path starts with /, it's likely a Git Bash path
+    # that needs conversion to Windows format for Python to use
+    if sys.platform == 'win32' and config_file.startswith('/'):
+        # Handle /c/path... format from Git Bash
+        if config_file.startswith('/') and len(config_file) > 2 and config_file[2] == '/':
+            drive = config_file[1:2]
+            rest = config_file[3:]
+            config_file = drive + ':\\\\' + rest.replace('/', '\\\\')
+    
+    print(f'Original path: {r\"${CONFIG_FILE}\"}')
+    print(f'Processed path: {config_file}')
+    
+    with open(config_file, encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+        if config:
+            print('YAML loaded successfully!')
+            print(f'Keys found: {list(config.keys())}')
+            if 'variables' in config:
+                var_keys = list(config['variables'].keys())
+                print(f'First 3 variable keys: {var_keys[:3]}')
+                print(f'Example value (target_location): {config[\"variables\"].get(\"target_location\")}')
+        else:
+            print('YAML loaded but returned None/empty')
+except Exception as e:
+    print(f'Error loading YAML: {e}')
+"
+        echo ""
+    else
+        echo "File exists: NO"
+    fi
+    
+    echo ""
+    echo "--- Configuration Values ---"
+    # Get each value with debug info
+    tgt_loc=$(get_config_value 'target_location')
+    echo "🌐 Azure Region: ${tgt_loc:-<empty>}"
+    
+    tgt_rg=$(get_config_value 'target_resource_group')
+    echo "� Resource Group: ${tgt_rg:-<empty>}"
+    
+    tgt_acct=$(get_config_value 'target_netapp_account')
+    echo "�️  NetApp Account: ${tgt_acct:-<empty>}"
+    
+    tgt_pool=$(get_config_value 'target_capacity_pool')
+    echo "� Capacity Pool: ${tgt_pool:-<empty>}"
+    
+    tgt_vol=$(get_config_value 'target_volume_name')
+    echo "💾 Volume: ${tgt_vol:-<empty>}"
+    
     echo "🔌 Protocol: $protocol"
     echo "⚡ QoS: $qos"
-    echo "🔄 Replication: $(get_config_value 'replication_schedule')"
     
-    # Display source configuration
-    echo ""
-    echo "📋 Source Configuration:"
-    echo "🖥️  Source Cluster: $(get_config_value 'source_cluster_name')"
-    echo "🌐 Source Hostname: $(get_config_value 'source_hostname')"
-    echo "📁 Source SVM: $(get_config_value 'source_svm_name')"
-    echo "💾 Source Volume: $(get_config_value 'source_volume_name')"
+    repl=$(get_config_value 'replication_schedule')
+    echo "� Replication: ${repl:-<empty>}"
     
-    # Format peer addresses
-    local peer_addresses=$(get_config_value 'source_peer_addresses')
-    if [[ "$peer_addresses" == *"["* ]]; then
-        # Try to parse JSON array and make it more readable
-        echo -n "🔌 Peer Addresses: "
-        $PYTHON_CMD -c "
-import json
-try:
-    addresses = json.loads('$peer_addresses')
-    print(', '.join(addresses))
-except Exception:
-    print('$peer_addresses')
-"
-    else
-        echo "🔌 Peer Addresses: $peer_addresses"
-    fi
-    
-    # Display target volume details
-    echo ""
-    echo "📋 Target Volume Details:"
-    
-    # Convert usage threshold to GiB
-    local usage_threshold=$(get_config_value 'target_usage_threshold')
-    if [[ -n "$usage_threshold" && "$usage_threshold" != "" ]]; then
-        # Convert bytes to GiB
-        local size_gib=$((usage_threshold / 1024 / 1024 / 1024))
-        echo "📏 Volume Size: $size_gib GiB"
-    else
-        echo "📏 Volume Size: <not set>"
-    fi
-    
-    echo "🏷️  Service Level: $(get_config_value 'target_service_level')"
-    
-    # Format zones
-    local zones=$(get_config_value 'target_zones')
-    if [[ "$zones" == *"["* ]]; then
-        # Try to parse JSON array and make it more readable
-        echo -n "🔳 Availability Zones: "
-        $PYTHON_CMD -c "
-import json
-try:
-    zones = json.loads('$zones')
-    if zones:
-        print(', '.join(zones))
-    else:
-        print('<none>')
-except Exception:
-    print('$zones')
-"
-    else
-        echo "🔳 Availability Zones: $zones"
-    fi
-    
-    echo "🔄 Large Volume: $(get_config_value 'target_is_large_volume')"
-    
-    # Display subnet ID in a more readable format
-    local subnet=$(get_config_value 'target_subnet_id')
-    if [[ -n "$subnet" && "$subnet" != "" ]]; then
-        echo "🌐 Subnet: $subnet"
-    fi
-    
-    # Display Azure configuration details
-    echo ""
-    echo "📋 Azure Configuration:"
-    echo "🔑 Tenant ID: $(get_config_value 'azure_tenant_id')"
-    echo "📑 Subscription ID: $(get_config_value 'azure_subscription_id')"
-    echo "🔌 App ID: $(get_config_value 'azure_app_id')"
-    echo "🔒 App Secret: <hidden>"
-    echo "🌍 API Version: $(get_config_value 'azure_api_version')"
-    
-    # Display manual QoS if set
-    local throughput=$(get_config_value 'target_throughput_mibps')
-    if [[ -n "$throughput" && "$throughput" != "" ]]; then
-        echo "🚀 Manual Throughput: $throughput MiB/s"
-    fi
+    src_cluster=$(get_config_value 'source_cluster_name')
+    echo "🖥️  Source Cluster: ${src_cluster:-<empty>}"
 }
 
 # Enhanced API call with detailed response handling

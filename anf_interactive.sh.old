@@ -231,23 +231,84 @@ show_config() {
     echo "📋 Current Configuration:"
     echo "📄 Config File: $CONFIG_FILE"
     
-    # Display main configuration values with icons
-    echo "🌐 Azure Region: $(get_config_value 'target_location')"
-    echo "📁 Resource Group: $(get_config_value 'target_resource_group')" 
-    echo "🗄️  NetApp Account: $(get_config_value 'target_netapp_account')"
-    echo "📊 Capacity Pool: $(get_config_value 'target_capacity_pool')"
-    echo "💾 Volume: $(get_config_value 'target_volume_name')"
+    # Add debug info
+    echo ""
+    echo "DEBUG - Testing file access:"
+    if [[ -f "$CONFIG_FILE" ]]; then
+        echo "File exists: YES"
+        echo "File size: $(stat -c%s "$CONFIG_FILE" 2>/dev/null || stat -f%z "$CONFIG_FILE" 2>/dev/null || echo "unknown") bytes"
+        echo "File readable: $([[ -r "$CONFIG_FILE" ]] && echo "YES" || echo "NO")"
+        
+        # Test python direct yaml load
+        echo ""
+        echo "Testing YAML loading directly:"
+        $PYTHON_CMD -c "
+import yaml, os, sys
+try:
+    # Use the exact path string from bash without normalization
+    config_file = r'${CONFIG_FILE}'
+    
+    # If we're on Windows and the path starts with /, it's likely a Git Bash path
+    # that needs conversion to Windows format for Python to use
+    if sys.platform == 'win32' and config_file.startswith('/'):
+        # Handle /c/path... format from Git Bash
+        if config_file.startswith('/') and len(config_file) > 2 and config_file[2] == '/':
+            drive = config_file[1:2]
+            rest = config_file[3:]
+            config_file = drive + ':\\\\' + rest.replace('/', '\\\\')
+    
+    print(f'Original path: {r\"${CONFIG_FILE}\"}')
+    print(f'Processed path: {config_file}')
+    
+    with open(config_file, encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+        if config:
+            print('YAML loaded successfully!')
+            print(f'Keys found: {list(config.keys())}')
+            if 'variables' in config:
+                var_keys = list(config['variables'].keys())
+                print(f'First 3 variable keys: {var_keys[:3]}')
+                print(f'Example value (target_location): {config[\"variables\"].get(\"target_location\")}')
+        else:
+            print('YAML loaded but returned None/empty')
+except Exception as e:
+    print(f'Error loading YAML: {e}')
+"
+        echo ""
+    else
+        echo "File exists: NO"
+    fi
+    
+    echo ""
+    echo "--- Configuration Values ---"
+    # Get each value with debug info
+    tgt_loc=$(get_config_value 'target_location')
+    echo "🌐 Azure Region: ${tgt_loc:-<empty>}"
+    
+    tgt_rg=$(get_config_value 'target_resource_group')
+    echo "� Resource Group: ${tgt_rg:-<empty>}"
+    
+    tgt_acct=$(get_config_value 'target_netapp_account')
+    echo "�️  NetApp Account: ${tgt_acct:-<empty>}"
+    
+    tgt_pool=$(get_config_value 'target_capacity_pool')
+    echo "� Capacity Pool: ${tgt_pool:-<empty>}"
+    
+    tgt_vol=$(get_config_value 'target_volume_name')
+    echo "💾 Volume: ${tgt_vol:-<empty>}"
+    
     echo "🔌 Protocol: $protocol"
     echo "⚡ QoS: $qos"
-    echo "🔄 Replication: $(get_config_value 'replication_schedule')"
     
-    # Display source configuration
-    echo ""
-    echo "📋 Source Configuration:"
-    echo "🖥️  Source Cluster: $(get_config_value 'source_cluster_name')"
+    repl=$(get_config_value 'replication_schedule')
+    echo "� Replication: ${repl:-<empty>}"
+    
+    src_cluster=$(get_config_value 'source_cluster_name')
+    echo "🖥️  Source Cluster: ${src_cluster:-<empty>}"
+    
+    # Display source hostname and SVM
     echo "🌐 Source Hostname: $(get_config_value 'source_hostname')"
     echo "📁 Source SVM: $(get_config_value 'source_svm_name')"
-    echo "💾 Source Volume: $(get_config_value 'source_volume_name')"
     
     # Format peer addresses
     local peer_addresses=$(get_config_value 'source_peer_addresses')

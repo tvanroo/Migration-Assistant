@@ -6,7 +6,7 @@ variables:
   azure_app_id: 12345678-1234-1234-1234-123456789abc
   azure_auth_base_url: https://login.microsoftonline.com/
   azure_subscription_id: 12345678-1234-1234-1234-123456789abc
-  azure_tenant_id: 12345678-1234-1234-1234-123456789abc
+  azure_tenant_id: 12345678-1234-1234-1234-123456733333
   replication_schedule: Hourly
   source_cluster_name: ONTAP-Source-Cluster-Name
   source_hostname: ONTAP-Source-DNS-Name
