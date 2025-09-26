@@ -12,7 +12,31 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/config.yaml"
+
+# Parse command line arguments for custom config file
+CONFIG_FILENAME="config.yaml"  # default
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --config)
+            CONFIG_FILENAME="$2"
+            shift 2
+            ;;
+        -c)
+            CONFIG_FILENAME="$2"  
+            shift 2
+            ;;
+        --config=*)
+            CONFIG_FILENAME="${1#*=}"
+            shift
+            ;;
+        *)
+            # Keep other arguments for later processing
+            break
+            ;;
+    esac
+done
+
+CONFIG_FILE="${SCRIPT_DIR}/${CONFIG_FILENAME}"
 TOKEN_FILE="${SCRIPT_DIR}/.token"
 LOG_FILE="${SCRIPT_DIR}/anf_migration_interactive.log"
 
@@ -87,7 +111,7 @@ get_config_value() {
     $PYTHON_CMD -c "
 import yaml
 try:
-    with open('config.yaml') as f:
+    with open('$CONFIG_FILE') as f:
         config = yaml.safe_load(f)
         all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
         print(all_vars.get('$key', ''))
@@ -125,6 +149,11 @@ confirm_step() {
     if [[ "${ANF_INTERACTION_MODE:-full}" == "minimal" && "$force_prompt" != "true" ]]; then
         info "Auto-continuing: $step_name ($description)"
         return 0
+    fi
+    
+    # Skip prompts in monitoring mode
+    if [[ "$ANF_MONITORING_MODE" == "true" ]]; then
+        return 0  # Auto-continue
     fi
     
     echo -e "${CYAN}📋 Next: $step_name${NC}"
@@ -181,6 +210,7 @@ show_config() {
     local qos=$(get_qos)
     
     echo "📋 Current Configuration:"
+    echo "📄 Config File: $CONFIG_FILE"
     echo "🌐 Azure Region: $(get_config_value 'target_location')"
     echo "📁 Resource Group: $(get_config_value 'target_resource_group')" 
     echo "🗄️  NetApp Account: $(get_config_value 'target_netapp_account')"
@@ -223,7 +253,7 @@ execute_api_call() {
     # Replace variables in URL
     full_url=$(echo "$full_url" | $PYTHON_CMD -c "
 import sys, yaml
-with open('config.yaml') as f:
+with open('$CONFIG_FILE') as f:
     config = yaml.safe_load(f)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
@@ -237,7 +267,7 @@ print(url)
     if [[ -n "$data" ]]; then
         data=$(echo "$data" | $PYTHON_CMD -c "
 import sys, yaml, json
-with open('config.yaml') as f:
+with open('$CONFIG_FILE') as f:
     config = yaml.safe_load(f)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
@@ -578,7 +608,9 @@ monitor_replication_status() {
     # Variables to track transfer progress
     local initial_total_bytes=0
     local initial_timestamp=""
-    local monitoring_start_time=$(date +%s)
+    # Cross-platform timestamp initialization
+    local monitoring_start_time
+    monitoring_start_time=$($PYTHON_CMD -c "import time; print(int(time.time()))")
     local first_measurement_taken=false
     local check_count=0
     
@@ -604,24 +636,17 @@ monitor_replication_status() {
         local resource_id="/subscriptions/${subscription_id}/resourceGroups/${resource_group}/providers/Microsoft.NetApp/netAppAccounts/${account_name}/capacityPools/${pool_name}/volumes/${volume_name}"
         local metrics_base_url="https://management.azure.com${resource_id}/providers/Microsoft.Insights/metrics"
         
-        # Get current time for metrics query (last 5 minutes to account for delay)
-        local end_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
-        local start_time
-        # Try different date command formats for cross-platform compatibility
-        if command -v gdate >/dev/null 2>&1; then
-            # GNU date (available on macOS with coreutils)
-            start_time=$(gdate -u -d "10 minutes ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null)
-        elif date -u -d "10 minutes ago" +"%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
-            # GNU date (Linux)
-            start_time=$(date -u -d "10 minutes ago" +"%Y-%m-%dT%H:%M:%SZ")
-        elif date -u -v-10M +"%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
-            # BSD date (macOS)
-            start_time=$(date -u -v-10M +"%Y-%m-%dT%H:%M:%SZ")
-        else
-            # Fallback - use same time (will get less historical data)
-            warning "Could not calculate start time, using current time as fallback"
-            start_time="$end_time"
-        fi
+        # Get current time for metrics query using Python for cross-platform reliability
+        local time_calculations
+        time_calculations=$($PYTHON_CMD -c "
+import datetime
+now = datetime.datetime.utcnow()
+start = now - datetime.timedelta(minutes=10)
+print('{0}|{1}'.format(now.strftime('%Y-%m-%dT%H:%M:%SZ'), start.strftime('%Y-%m-%dT%H:%M:%SZ')))
+")
+        
+        local end_time=$(echo "$time_calculations" | cut -d'|' -f1)
+        local start_time=$(echo "$time_calculations" | cut -d'|' -f2)
         
         # Query replication metrics
         local metrics_url="${metrics_base_url}?api-version=2018-01-01&metricnames=VolumeReplicationTotalTransfer,VolumeReplicationTotalProgress&timespan=${start_time}/${end_time}&interval=PT1M"
@@ -717,7 +742,9 @@ except Exception as e:
                 elif [[ "$first_measurement_taken" == "true" && -n "$current_bytes" && "$current_bytes" != "$initial_total_bytes" ]]; then
                     # Calculate average transfer rate since monitoring started
                     local bytes_transferred=$((current_bytes - initial_total_bytes))
-                    local current_time=$(date +%s)
+                    # Cross-platform current time calculation
+                    local current_time
+                    current_time=$($PYTHON_CMD -c "import time; print(int(time.time()))")
                     local elapsed_seconds=$((current_time - monitoring_start_time))
                     
                     if [[ $elapsed_seconds -gt 0 && $bytes_transferred -gt 0 ]]; then
@@ -917,9 +944,13 @@ run_replication_monitor_standalone() {
     check_dependencies
     validate_config
     
+    # Set monitoring mode to bypass interactive prompts
+    export ANF_MONITORING_MODE="true"
+    
     step_header "Replication Status Monitor"
     
-    info "This tool monitors the replication status of existing Azure NetApp Files migrations."
+    info "Starting real-time replication monitoring for all available volumes..."
+    echo -e "${YELLOW}📊 Note: Press Ctrl+C at any time to stop monitoring${NC}"
     echo ""
     
     # Set token in environment for Python subprocess
@@ -929,6 +960,7 @@ run_replication_monitor_standalone() {
     # List available replication volumes
     if ! list_replication_volumes; then
         echo ""
+        error "No replication volumes found."
         echo "To use this monitoring tool:"
         echo "1. Complete the peering setup phase first (run: ./anf_interactive.sh peering)"
         echo "2. Wait a few minutes for replication to start"
@@ -936,98 +968,48 @@ run_replication_monitor_standalone() {
         exit 1
     fi
     
-    # Let user select which volume to monitor
-    echo -e "${BLUE}Select a replication volume to monitor:${NC}"
-    
-    local selected_volume=""
-    local selected_name=""
-    
-    while true; do
-        read -p "Enter volume number (1-N): " volume_choice
-        
-        if [[ "$volume_choice" =~ ^[0-9]+$ ]]; then
-            # Extract selected volume info
-            selected_info=$($PYTHON_CMD -c "
+    # Auto-select first available volume for monitoring
+    local selected_info=$($PYTHON_CMD -c "
 import json
 try:
     with open('.replication_volumes_list', 'r') as f:
         volumes = json.load(f)
     
-    choice = int('$volume_choice') - 1
-    if 0 <= choice < len(volumes):
-        vol = volumes[choice]
+    if len(volumes) > 0:
+        vol = volumes[0]  # Select first volume automatically
         print(f\"{vol['volume_name']}|{vol['source_volume']}\")
     else:
-        print('INVALID')
+        print('NONE')
 except:
     print('ERROR')
 ")
-            
-            if [[ "$selected_info" == "INVALID" ]]; then
-                warning "Invalid selection. Please try again."
-                continue
-            elif [[ "$selected_info" == "ERROR" ]]; then
-                error_exit "Error reading volume list"
-            else
-                selected_volume=$(echo "$selected_info" | cut -d'|' -f1)
-                selected_name=$(echo "$selected_info" | cut -d'|' -f2)
-                break
-            fi
-        else
-            warning "Please enter a valid number."
-        fi
-    done
+    
+    if [[ "$selected_info" == "NONE" ]]; then
+        error_exit "No replication volumes available"
+    elif [[ "$selected_info" == "ERROR" ]]; then
+        error_exit "Error reading volume list"
+    fi
+    
+    local selected_volume=$(echo "$selected_info" | cut -d'|' -f1)
+    local selected_name=$(echo "$selected_info" | cut -d'|' -f2)
     
     # Clean up temp files
     rm -f ".replication_volumes_list" 2>/dev/null
     unset ANF_TOKEN
     
     echo ""
-    success "Selected volume: $selected_volume (source: $selected_name)"
+    success "Monitoring volume: $selected_volume (source: $selected_name)"
+    info "Monitoring will continue until you press Ctrl+C"
     echo ""
     
-    # Ask for monitoring duration
-    echo "How long would you like to monitor? (default: 30 minutes)"
-    echo "1. 15 minutes"
-    echo "2. 30 minutes (default)"
-    echo "3. 60 minutes"
-    echo "4. 120 minutes (2 hours)"
-    echo "5. Custom duration"
-    
-    local monitor_duration=30
-    read -p "Enter choice [1-5] (default: 2): " duration_choice
-    
-    case "${duration_choice:-2}" in
-        1) monitor_duration=15 ;;
-        2) monitor_duration=30 ;;
-        3) monitor_duration=60 ;;
-        4) monitor_duration=120 ;;
-        5) 
-            while true; do
-                read -p "Enter duration in minutes: " custom_duration
-                if [[ "$custom_duration" =~ ^[0-9]+$ ]] && [[ $custom_duration -gt 0 ]]; then
-                    monitor_duration=$custom_duration
-                    break
-                else
-                    warning "Please enter a valid number of minutes."
-                fi
-            done
-            ;;
-        *) monitor_duration=30 ;;
-    esac
+    # Start monitoring with unlimited duration (will run until Ctrl+C)
+    monitor_replication_status "$selected_volume" "999999"  # Very large number for continuous monitoring
     
     echo ""
-    info "Starting replication monitoring for $monitor_duration minutes..."
-    echo -e "${YELLOW}Note: Press Ctrl+C at any time to stop monitoring${NC}"
-    echo ""
+    echo -e "${GREEN}🎉 Monitoring session stopped!${NC}"
     
-    # Start monitoring
-    monitor_replication_status "$selected_volume" "$monitor_duration"
-    
-    echo ""
-    echo -e "${GREEN}🎉 Monitoring session completed!${NC}"
-    echo ""
-    echo "To monitor again, run: ./anf_interactive.sh monitor"
+    # Clean up monitoring mode
+    unset ANF_MONITORING_MODE
 }
 
 # Monitor async operation status and return final response data
@@ -1822,8 +1804,8 @@ validate_config() {
         error_exit "Configuration file $CONFIG_FILE not found. Please run the setup wizard first (option 1)."
     fi
     
-    # Test if we can actually read the config file using relative path for Python
-    if ! $PYTHON_CMD -c "import yaml; yaml.safe_load(open('config.yaml'))" 2>/dev/null; then
+    # Test if we can actually read the config file using the CONFIG_FILE variable
+    if ! $PYTHON_CMD -c "import yaml; yaml.safe_load(open('$CONFIG_FILE'))" 2>/dev/null; then
         error_exit "Configuration file exists but cannot be parsed. Please run the setup wizard again (option 1)."
     fi
     
@@ -1842,7 +1824,11 @@ show_help() {
     echo "This tool provides a menu-driven approach to Azure NetApp Files migration,"
     echo "with step-by-step execution and full visibility into each REST API call."
     echo ""
-    echo -e "${BLUE}Usage:${NC} $0 [COMMAND]"
+    echo -e "${BLUE}Usage:${NC} $0 [OPTIONS] [COMMAND]"
+    echo ""
+    echo -e "${CYAN}Options:${NC}"
+    echo "  --config FILE, -c FILE    Use custom config file (default: config.yaml)"
+    echo "  --config=FILE             Alternative syntax for custom config file"
     echo ""
     echo -e "${CYAN}Commands:${NC}"
     echo "  menu     - Show interactive menu (default)"
@@ -1873,6 +1859,11 @@ show_help() {
     echo "  2. Run 'anf_interactive.sh peering' or choose menu option 2"
     echo "  3. Wait for data sync to complete (monitor in Azure Portal)"
     echo "  4. Run 'anf_interactive.sh break' or choose menu option 3"
+    echo ""
+    echo -e "${GREEN}Custom Config File Examples:${NC}"
+    echo "  ./anf_interactive.sh --config production.yaml peering"
+    echo "  ./anf_interactive.sh -c test-config.yaml monitor"
+    echo "  ./anf_interactive.sh --config=staging.yaml menu"
     echo ""
 }
 
@@ -2258,6 +2249,11 @@ case "${1:-menu}" in
     *)
         echo "Unknown command: $1"
         echo ""
+        echo "Usage: $0 [OPTIONS] [COMMAND]"
+        echo ""
+        echo "Options:"
+        echo "  --config FILE, -c FILE    Use custom config file (default: config.yaml)"
+        echo ""
         echo "Available commands:"
         echo "  menu     - Show interactive menu (default)"
         echo "  setup    - Run setup wizard"
@@ -2267,6 +2263,10 @@ case "${1:-menu}" in
         echo "  config   - Show current configuration"
         echo "  token    - Get authentication token"
         echo "  help     - Show help"
+        echo ""
+        echo "Examples:"
+        echo "  $0 --config production.yaml peering"
+        echo "  $0 -c test.yaml monitor"
         exit 1
         ;;
 esac

@@ -114,6 +114,11 @@ python3 setup_wizard.py
 ./anf_interactive.sh peering   # Phase 2: Peering setup  
 ./anf_interactive.sh break     # Phase 3: Break replication
 ./anf_interactive.sh monitor   # Monitor replication status anytime
+
+# Custom config file support
+./anf_interactive.sh --config production.yaml peering
+./anf_interactive.sh -c test-config.yaml monitor  
+./anf_interactive.sh --config=staging.yaml menu
 ```
 
 ## ✅ Development Status
@@ -230,11 +235,17 @@ The tool uses `config.yaml` for all settings. You can:
 
 ### Standalone Monitoring
 
-- Discover all replication volumes automatically
-- Select volume by source name for monitoring
-- Real-time transfer progress and speed calculations
-- Average transfer rate since monitoring started
-- **Features**: Flexible duration options, Azure metrics integration, Ctrl+C interrupt support
+```bash
+# Start immediate continuous monitoring (no prompts)
+./anf_interactive.sh monitor
+```
+
+- **Immediate Start**: No interactive prompts - starts monitoring instantly
+- **Continuous Updates**: Real-time progress updates every 60 seconds  
+- **Auto-Discovery**: Automatically finds and monitors available replication volumes
+- **Ctrl+C to Stop**: Press Ctrl+C at any time to stop monitoring
+- **Real-Time Metrics**: Transfer progress, speed, and average rates
+- **Cross-Platform**: Works on Windows, Linux, and macOS
 
 ## 🔍 Monitoring & Logging
 
@@ -243,7 +254,7 @@ The tool uses `config.yaml` for all settings. You can:
 - **Interactive Mode**: Step-by-step progress with user confirmations
 - **Interaction Modes**: Choose between Minimal (auto-continue) or Full (step-by-step) modes
 - **Optional Phase 2 Monitoring**: Real-time replication progress during setup
-- **Standalone Monitoring**: Monitor any existing replication anytime with `./anf_interactive.sh monitor`
+- **Standalone Monitoring**: Immediate continuous monitoring with `./anf_interactive.sh monitor` (no prompts)
 
 ### Monitoring Features
 
@@ -276,6 +287,32 @@ export ANF_MONITORING_MODE="custom"
 export ANF_INTERACTION_MODE="minimal"  # Auto-continue through most steps
 export ANF_INTERACTION_MODE="full"     # Step-by-step prompts (default)
 ```
+
+### Custom Configuration Files
+
+Use different configuration files for multiple environments:
+
+```bash
+# Production environment
+./anf_interactive.sh --config production.yaml peering
+
+# Test environment  
+./anf_interactive.sh -c test-config.yaml monitor
+
+# Development environment (equals syntax)
+./anf_interactive.sh --config=dev-config.yaml setup
+
+# View which config file is active
+./anf_interactive.sh --config staging.yaml config
+```
+
+**Benefits:**
+
+- **Multi-Environment Support**: Separate configs for dev/test/production
+- **Easy Environment Switching**: No need to edit config files
+- **Configuration Isolation**: Keep sensitive production settings separate
+- **Default Fallback**: Uses `config.yaml` when no custom file specified
+
 
 ### Logging
 
