@@ -1804,9 +1804,45 @@ validate_config() {
         error_exit "Configuration file $CONFIG_FILE not found. Please run the setup wizard first (option 1)."
     fi
     
-    # Test if we can actually read the config file using the CONFIG_FILE variable
-    if ! $PYTHON_CMD -c "import yaml; yaml.safe_load(open('$CONFIG_FILE'))" 2>/dev/null; then
-        error_exit "Configuration file exists but cannot be parsed. Please run the setup wizard again (option 1)."
+    # Test if we can actually read the config file
+    if ! $PYTHON_CMD "${SCRIPT_DIR}/validate-yaml.py" "$CONFIG_FILE" 2>/dev/null; then
+        warning "Configuration file has parsing issues. Attempting automatic fix..."
+        
+        # Try to auto-fix the YAML file
+        if [[ -f "${SCRIPT_DIR}/yaml-autofix.py" ]]; then
+            info "Running YAML auto-remediation..."
+            if $PYTHON_CMD "${SCRIPT_DIR}/yaml-autofix.py" "$CONFIG_FILE"; then
+                success "YAML file automatically fixed!"
+                # Test again after fix
+                if $PYTHON_CMD "${SCRIPT_DIR}/validate-yaml.py" "$CONFIG_FILE" 2>/dev/null; then
+                    info "Configuration file is now valid after auto-fix"
+                else
+                    error_exit "Auto-fix failed - configuration still cannot be parsed. Please run the setup wizard: ./anf_interactive.sh setup"
+                fi
+            else
+                error_exit "Auto-fix failed. Configuration file exists but cannot be parsed. 
+
+❌ Common causes when editing YAML files on Windows:
+   1. File encoding issues (should be UTF-8)
+   2. Line ending problems (CRLF vs LF)
+   3. Tab characters instead of spaces for indentation
+   4. BOM (Byte Order Mark) added by some Windows editors
+
+💡 To diagnose the specific issue, run:
+   python yaml-diagnostic.py $CONFIG_FILENAME
+
+🔧 Quick fixes:
+   • Use an editor that supports UTF-8 without BOM (VS Code, Notepad++)
+   • Replace all tabs with spaces (2 or 4 spaces per indentation level)
+   • Ensure proper YAML syntax: 'key: value' (space after colon)
+   
+   Or run the setup wizard again: ./anf_interactive.sh setup"
+            fi
+        else
+            error_exit "Configuration file exists but cannot be parsed, and auto-fix tool not found.
+            
+Please run the setup wizard again: ./anf_interactive.sh setup"
+        fi
     fi
     
     # Validation passed - show current config
@@ -1837,6 +1873,7 @@ show_help() {
     echo "  break    - Run break replication workflow (finalize migration)"
     echo "  monitor  - Monitor replication status for existing migrations"
     echo "  config   - Show current configuration"
+    echo "  diagnose - Diagnose YAML configuration file issues"
     echo "  token    - Get authentication token only"
     echo "  help     - Show this help message"
     echo ""
@@ -2239,6 +2276,13 @@ case "${1:-menu}" in
         ;;
     "config")
         show_config
+        ;;
+    "diagnose"|"diagnostic")
+        if [[ -f "${SCRIPT_DIR}/yaml-diagnostic.py" ]]; then
+            $PYTHON_CMD "${SCRIPT_DIR}/yaml-diagnostic.py" "$CONFIG_FILENAME"
+        else
+            error "Diagnostic tool not found at ${SCRIPT_DIR}/yaml-diagnostic.py"
+        fi
         ;;
     "token")
         get_token

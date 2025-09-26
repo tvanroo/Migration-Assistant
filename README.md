@@ -320,6 +320,35 @@ Use different configuration files for multiple environments:
 - **Configuration Isolation**: Keep sensitive production settings separate
 - **Default Fallback**: Uses `config.yaml` when no custom file specified
 
+### YAML Auto-Remediation
+
+The migration assistant includes automatic YAML file fixing for common Windows editing issues:
+
+**Automatic Fixes Applied:**
+
+- **Encoding Issues**: Converts files to UTF-8 without BOM
+- **Line Endings**: Converts Windows CRLF to Unix LF format
+- **Tab Characters**: Replaces tabs with proper space indentation
+- **Colon Spacing**: Ensures proper `key: value` formatting
+- **BOM Removal**: Strips Byte Order Mark if present
+
+**When It Activates:**
+
+- Automatically runs when YAML parsing fails
+- Creates backup file before making changes
+- Provides detailed feedback on fixes applied
+- Seamless user experience - no manual intervention needed
+
+**Manual Tools Available:**
+
+```powershell
+# diagnose specific YAML issues
+python yaml-diagnostic.py config.yaml
+
+# manually fix YAML file
+python yaml-autofix.py config.yaml
+```
+
 
 ### Logging
 

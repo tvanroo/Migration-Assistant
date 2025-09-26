@@ -1,0 +1,28 @@
+secrets:
+  azure_app_secret: secret
+variables:
+  azure_api_base_url: https://management.azure.com
+  azure_api_version: '2025-06-01'
+  azure_app_id: 12345678-1234-1234-1234-123456789abc
+  azure_auth_base_url: https://login.microsoftonline.com/
+  azure_subscription_id: 12345678-1234-1234-1234-123456789abc
+  azure_tenant_id: 12345678-1234-1234-1234-123456789abc
+  replication_schedule: Hourly
+  source_cluster_name: ONTAP-Source-Cluster-Name
+  source_hostname: ONTAP-Source-DNS-Name
+  source_peer_addresses: '["192.168.1.1", "192.168.1.2"]'
+  source_svm_name: ONTAP-Source-SVM-Name
+  source_volume_name: ONTAP-Source-Vol-Name
+  target_capacity_pool: ANF-Capacity-Pool-Name
+  target_is_large_volume: 'false'
+  target_location: eastus
+  target_netapp_account: ANF-Account-Name
+  target_network_features: Standard
+  target_protocol_types: CIFS
+  target_resource_group: example-rg
+  target_service_level: Standard
+  target_subnet_id: /subscriptions/12345678-1234-1234-1234-123456789abc/resourceGroups/example-rg/providers/Microsoft.Network/virtualNetworks/ANFvNet/subnets/ANFsubNet
+  target_throughput_mibps: ''
+  target_usage_threshold: '107374182400'
+  target_volume_name: ANF-Dest-Volume
+  target_zones: '["1"]'
