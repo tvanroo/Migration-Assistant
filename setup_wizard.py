@@ -10,6 +10,7 @@ import sys
 import shutil
 import getpass
 import platform
+import argparse
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -29,18 +30,19 @@ except ImportError:
 class ANFSetupWizard:
     """Interactive wizard for setting up ANF Migration Assistant"""
     
-    def __init__(self):
+    def __init__(self, config_file: str = "config.yaml"):
         self.config = {
             'variables': {},
             'secrets': {}
         }
-        self.config_file = Path("config.yaml")
+        self.config_file = Path(config_file)
         
     def print_header(self):
         """Print welcome header"""
         print("=" * 80)
         print("🚀 Azure NetApp Files Migration Assistant - Setup Wizard")
         print("=" * 80)
+        print(f"\n📁 Configuration will be saved to: {self.config_file}")
         print("\nThis wizard will help you configure all required variables.")
         print("You can press ENTER to keep existing values or type 'skip' to leave blank.\n")
     
@@ -452,17 +454,19 @@ class ANFSetupWizard:
             required=True
         )
         
-        # Volume size (in bytes)
+        # Volume size (in bytes, displayed in GiB)
         current_usage = existing.get('variables', {}).get('target_usage_threshold', '')
-        size_gb = int(current_usage) // (1024**3) if current_usage and current_usage.isdigit() else 100
-        print(f"\n💡 Current size: {size_gb} GB")
-        new_size_gb = self.get_input(
-            "Volume Size (GB)", 
-            str(size_gb), 
+        size_gib = int(current_usage) // (1024**3) if current_usage and current_usage.isdigit() else 100
+        print(f"\n💡 Current size: {size_gib} GiB")
+        print("   Note: GiB (Gibibytes) = 1024³ bytes, used for binary storage calculations")
+        print("   Reference: 1 TiB = 1,024 GiB")
+        new_size_gib = self.get_input(
+            "Volume Size (GiB)", 
+            str(size_gib), 
             required=True, 
             validate_func=self.validate_numeric
         )
-        self.config['variables']['target_usage_threshold'] = str(int(new_size_gb) * 1024**3)
+        self.config['variables']['target_usage_threshold'] = str(int(new_size_gib) * 1024**3)
         
         # Protocol
         current_protocol = existing.get('variables', {}).get('target_protocol_types', 'CIFS')
@@ -640,13 +644,13 @@ class ANFSetupWizard:
         else:
             qos_type = 'Auto QoS'
         size_bytes = int(self.config['variables'].get('target_usage_threshold', '0'))
-        size_gb = size_bytes // (1024**3) if size_bytes > 0 else 0
+        size_gib = size_bytes // (1024**3) if size_bytes > 0 else 0
         
         print(f"🌐 Azure Region: {self.config['variables'].get('target_location')}")
         print(f"📁 Resource Group: {self.config['variables'].get('target_resource_group')}")
         print(f"🗄️  NetApp Account: {self.config['variables'].get('target_netapp_account')}")
         print(f"📊 Capacity Pool: {self.config['variables'].get('target_capacity_pool')}")
-        print(f"💾 Destination Volume: {self.config['variables'].get('target_volume_name')} ({size_gb} GB)")
+        print(f"💾 Destination Volume: {self.config['variables'].get('target_volume_name')} ({size_gib} GiB)")
         print(f"🔌 Protocol: {protocol}")
         print(f"⚡ QoS: {qos_type}")
         print(f"🔄 Replication: {self.config['variables'].get('replication_schedule')}")
@@ -734,7 +738,25 @@ class ANFSetupWizard:
 
 def main():
     """Main entry point"""
-    wizard = ANFSetupWizard()
+    parser = argparse.ArgumentParser(
+        description="Azure NetApp Files Migration Assistant - Setup Wizard",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python3 setup_wizard.py                    # Use default config.yaml
+  python3 setup_wizard.py -c production.yaml # Use custom config file
+  python3 setup_wizard.py --config test.yaml # Use custom config file
+        """
+    )
+    parser.add_argument(
+        '--config', '-c',
+        default='config.yaml',
+        help='Configuration file to create/modify (default: config.yaml)'
+    )
+    
+    args = parser.parse_args()
+    
+    wizard = ANFSetupWizard(args.config)
     success = wizard.run_wizard()
     return 0 if success else 1
 

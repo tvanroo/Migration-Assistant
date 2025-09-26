@@ -48,9 +48,11 @@ The prerequisite checker can automatically:
 4. **Run the migration script**:
 
    ```powershell
-   # From PowerShell
+   # From PowerShell (recommended)
    & "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
+   ```
    
+   ```bash
    # Or open Git Bash directly and run
    ./anf_interactive.sh
    ```
@@ -68,6 +70,11 @@ pip install --user PyYAML
 
 # Conda users
 conda install pyyaml
+
+# Run commands directly (no PowerShell wrapper needed)
+./anf_interactive.sh
+./anf_interactive.sh monitor
+./anf_interactive.sh --config production.yaml peering
 ```
 
 ## 🔍 Verify Installation
@@ -105,20 +112,20 @@ python3 setup_wizard.py
 
 ### 3. Execute Migration
 
-```bash
+```powershell
 # Interactive migration with menu system
-./anf_interactive.sh
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
 
 # Specific phases
-./anf_interactive.sh setup     # Phase 1: Configuration
-./anf_interactive.sh peering   # Phase 2: Peering setup  
-./anf_interactive.sh break     # Phase 3: Break replication
-./anf_interactive.sh monitor   # Monitor replication status anytime
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh setup"     # Phase 1: Configuration
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"   # Phase 2: Peering setup  
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh break"     # Phase 3: Break replication
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh monitor"   # Monitor replication status anytime
 
 # Custom config file support
-./anf_interactive.sh --config production.yaml peering
-./anf_interactive.sh -c test-config.yaml monitor  
-./anf_interactive.sh --config=staging.yaml menu
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config production.yaml peering"
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh -c test-config.yaml monitor"
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config=staging.yaml menu"
 ```
 
 ## ✅ Development Status
@@ -165,9 +172,9 @@ This Migration Assistant focuses on two main script types for maximum cross-plat
 
 #### Interactive Mode (Recommended)
 
-```bash
+```powershell
 # Start with menu system
-./anf_interactive.sh
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
 
 # Available menu options:
 # 1. Run Setup Wizard
@@ -181,14 +188,14 @@ This Migration Assistant focuses on two main script types for maximum cross-plat
 
 #### Direct Phase Execution
 
-```bash
-./anf_interactive.sh setup    # Configure parameters
-./anf_interactive.sh peering  # Set up connectivity and start sync
-./anf_interactive.sh break    # Finalize migration
-./anf_interactive.sh monitor  # Monitor replication progress
-./anf_interactive.sh config   # Show current configuration
-./anf_interactive.sh token    # Get authentication token
-./anf_interactive.sh help     # Show help information
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh setup"    # Configure parameters
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"  # Set up connectivity and start sync
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh break"    # Finalize migration
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh monitor"  # Monitor replication progress
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh config"   # Show current configuration
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh token"    # Get authentication token
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh help"     # Show help information
 ```
 
 ## 🔧 Configuration
@@ -197,7 +204,7 @@ The tool uses `config.yaml` for all settings. You can:
 
 1. **Run Setup Wizard** (recommended): `python3 setup_wizard.py`
 2. **Manual Configuration**: Copy `config.template.yaml` to `config.yaml` and edit
-3. **View Current Config**: `./anf_interactive.sh config`
+3. **View Current Config**: `& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh config"`
 
 ### Configuration Sections
 
@@ -235,9 +242,9 @@ The tool uses `config.yaml` for all settings. You can:
 
 ### Standalone Monitoring
 
-```bash
+```powershell
 # Start immediate continuous monitoring (no prompts)
-./anf_interactive.sh monitor
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh monitor"
 ```
 
 - **Immediate Start**: No interactive prompts - starts monitoring instantly
@@ -254,7 +261,7 @@ The tool uses `config.yaml` for all settings. You can:
 - **Interactive Mode**: Step-by-step progress with user confirmations
 - **Interaction Modes**: Choose between Minimal (auto-continue) or Full (step-by-step) modes
 - **Optional Phase 2 Monitoring**: Real-time replication progress during setup
-- **Standalone Monitoring**: Immediate continuous monitoring with `./anf_interactive.sh monitor` (no prompts)
+- **Standalone Monitoring**: Immediate continuous monitoring with `& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh monitor"` (no prompts)
 
 ### Monitoring Features
 
@@ -266,44 +273,44 @@ The tool uses `config.yaml` for all settings. You can:
 
 ### Monitoring Levels
 
-```bash
+```powershell
 # Full monitoring (recommended for new users)
-export ANF_MONITORING_MODE="full"
-./anf_interactive.sh peering
+$env:ANF_MONITORING_MODE="full"
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"
 
 # Quick mode (minimal prompts for experienced users)  
-export ANF_MONITORING_MODE="quick"
-./anf_interactive.sh peering
+$env:ANF_MONITORING_MODE="quick"
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"
 
 # Custom monitoring (user choice each time)
-export ANF_MONITORING_MODE="custom"
-./anf_interactive.sh peering
+$env:ANF_MONITORING_MODE="custom"
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"
 ```
 
 ### Interaction Modes (Phase 2 & 3)
 
-```bash
+```powershell
 # Set interaction mode for automated workflows
-export ANF_INTERACTION_MODE="minimal"  # Auto-continue through most steps
-export ANF_INTERACTION_MODE="full"     # Step-by-step prompts (default)
+$env:ANF_INTERACTION_MODE="minimal"  # Auto-continue through most steps
+$env:ANF_INTERACTION_MODE="full"     # Step-by-step prompts (default)
 ```
 
 ### Custom Configuration Files
 
 Use different configuration files for multiple environments:
 
-```bash
+```powershell
 # Production environment
-./anf_interactive.sh --config production.yaml peering
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config production.yaml peering"
 
 # Test environment  
-./anf_interactive.sh -c test-config.yaml monitor
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh -c test-config.yaml monitor"
 
 # Development environment (equals syntax)
-./anf_interactive.sh --config=dev-config.yaml setup
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config=dev-config.yaml setup"
 
 # View which config file is active
-./anf_interactive.sh --config staging.yaml config
+& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config staging.yaml config"
 ```
 
 **Benefits:**

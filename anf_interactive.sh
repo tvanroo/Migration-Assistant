@@ -1903,7 +1903,7 @@ run_setup_wizard() {
     info "Launching configuration wizard..."
     
     if [[ -f "${SCRIPT_DIR}/setup_wizard.py" ]]; then
-        $PYTHON_CMD "${SCRIPT_DIR}/setup_wizard.py"
+        $PYTHON_CMD "${SCRIPT_DIR}/setup_wizard.py" --config "$CONFIG_FILENAME"
         if [[ $? -eq 0 ]]; then
             success "Configuration wizard completed successfully"
             info "Config file updated: $CONFIG_FILE"
