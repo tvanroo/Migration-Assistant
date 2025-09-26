@@ -605,16 +605,34 @@ monitor_replication_status() {
         local metrics_base_url="https://management.azure.com${resource_id}/providers/Microsoft.Insights/metrics"
         
         # Get current time for metrics query (last 5 minutes to account for delay)
-        local end_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-        local start_time=$(date -u -d "10 minutes ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -v-10M +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "$end_time")
+        local end_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
+        local start_time
+        # Try different date command formats for cross-platform compatibility
+        if command -v gdate >/dev/null 2>&1; then
+            # GNU date (available on macOS with coreutils)
+            start_time=$(gdate -u -d "10 minutes ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null)
+        elif date -u -d "10 minutes ago" +"%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
+            # GNU date (Linux)
+            start_time=$(date -u -d "10 minutes ago" +"%Y-%m-%dT%H:%M:%SZ")
+        elif date -u -v-10M +"%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
+            # BSD date (macOS)
+            start_time=$(date -u -v-10M +"%Y-%m-%dT%H:%M:%SZ")
+        else
+            # Fallback - use same time (will get less historical data)
+            warning "Could not calculate start time, using current time as fallback"
+            start_time="$end_time"
+        fi
         
         # Query replication metrics
         local metrics_url="${metrics_base_url}?api-version=2018-01-01&metricnames=VolumeReplicationTotalTransfer,VolumeReplicationTotalProgress&timespan=${start_time}/${end_time}&interval=PT1M"
         
         local metrics_response=$(curl -s --max-time 30 -H "Authorization: Bearer $token" "$metrics_url" 2>/dev/null)
+        local curl_exit_code=$?
         
-        if [[ $? -eq 0 && -n "$metrics_response" ]]; then
+        if [[ $curl_exit_code -eq 0 && -n "$metrics_response" ]]; then
             # Parse metrics response
+            # Temporarily disable set -e to prevent script exit on Python errors
+            set +e
             echo "$metrics_response" | $PYTHON_CMD -c "
 import json, sys
 from datetime import datetime, timezone
@@ -681,6 +699,8 @@ except Exception as e:
     raw = sys.stdin.read()[:100]
     print(raw)
 " 2>/dev/null
+            # Re-enable set -e
+            set -e
             
             # Calculate average transfer rate since monitoring started
             if [[ -f ".replication_stats" ]]; then
@@ -702,8 +722,28 @@ except Exception as e:
                     
                     if [[ $elapsed_seconds -gt 0 && $bytes_transferred -gt 0 ]]; then
                         local avg_bytes_per_sec=$((bytes_transferred / elapsed_seconds))
-                        local avg_mbps=$(echo "scale=2; $avg_bytes_per_sec * 8 / 1024 / 1024" | bc 2>/dev/null || echo "0")
-                        local avg_mb_per_sec=$(echo "scale=2; $avg_bytes_per_sec / 1024 / 1024" | bc 2>/dev/null || echo "0")
+                        
+                        # Use Python for decimal calculations instead of bc
+                        local rate_calculations=$($PYTHON_CMD -c "
+avg_bytes_per_sec = $avg_bytes_per_sec
+avg_mbps = (avg_bytes_per_sec * 8) / (1024 * 1024)
+avg_mb_per_sec = avg_bytes_per_sec / (1024 * 1024)
+bytes_transferred = $bytes_transferred
+
+# Format transferred amount
+if bytes_transferred >= (1024**3):  # GB
+    transferred_str = f'{bytes_transferred / (1024**3):.2f} GB'
+elif bytes_transferred >= (1024**2):  # MB
+    transferred_str = f'{bytes_transferred / (1024**2):.2f} MB'
+else:
+    transferred_str = f'{bytes_transferred} bytes'
+
+print(f'{avg_mb_per_sec:.2f}|{avg_mbps:.2f}|{transferred_str}')
+")
+                        
+                        local avg_mb_per_sec=$(echo "$rate_calculations" | cut -d'|' -f1)
+                        local avg_mbps=$(echo "$rate_calculations" | cut -d'|' -f2)
+                        local transferred_str=$(echo "$rate_calculations" | cut -d'|' -f3)
                         
                         # Calculate elapsed time in human readable format
                         local hours=$((elapsed_seconds / 3600))
@@ -717,16 +757,6 @@ except Exception as e:
                             elapsed_str="${minutes}m ${seconds}s"
                         else
                             elapsed_str="${seconds}s"
-                        fi
-                        
-                        # Format transferred amount
-                        local transferred_str=""
-                        if [[ $bytes_transferred -ge $((1024**3)) ]]; then  # GB
-                            transferred_str=$(echo "scale=2; $bytes_transferred / (1024^3)" | bc 2>/dev/null || echo "$(($bytes_transferred / 1073741824)) GB")
-                        elif [[ $bytes_transferred -ge $((1024**2)) ]]; then  # MB
-                            transferred_str=$(echo "scale=2; $bytes_transferred / (1024^2)" | bc 2>/dev/null || echo "$(($bytes_transferred / 1048576)) MB")
-                        else
-                            transferred_str="$bytes_transferred bytes"
                         fi
                         
                         echo -e "${GREEN}🚀 Average Transfer Rate: ${avg_mb_per_sec} MB/s (${avg_mbps} Mbps)${NC}"
