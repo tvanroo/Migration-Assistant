@@ -356,8 +356,21 @@ execute_api_call() {
     
     # Replace variables in URL
     full_url=$(echo "$full_url" | $PYTHON_CMD -c "
-import sys, yaml
-with open('$CONFIG_FILE') as f:
+import sys, yaml, os
+
+# Use the exact path string from bash without normalization
+config_file = r'${CONFIG_FILE}'
+
+# If we're on Windows and the path starts with /, it's likely a Git Bash path
+# that needs conversion to Windows format for Python to use
+if sys.platform == 'win32' and config_file.startswith('/'):
+    # Handle /c/path... format from Git Bash
+    if config_file.startswith('/') and len(config_file) > 2 and config_file[2] == '/':
+        drive = config_file[1:2]
+        rest = config_file[3:]
+        config_file = drive + ':\\\\' + rest.replace('/', '\\\\')
+
+with open(config_file, encoding='utf-8') as f:
     config = yaml.safe_load(f)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
@@ -370,8 +383,21 @@ print(url)
     # Replace variables in data if provided
     if [[ -n "$data" ]]; then
         data=$(echo "$data" | $PYTHON_CMD -c "
-import sys, yaml, json
-with open('$CONFIG_FILE') as f:
+import sys, yaml, json, os
+
+# Use the exact path string from bash without normalization
+config_file = r'${CONFIG_FILE}'
+
+# If we're on Windows and the path starts with /, it's likely a Git Bash path
+# that needs conversion to Windows format for Python to use
+if sys.platform == 'win32' and config_file.startswith('/'):
+    # Handle /c/path... format from Git Bash
+    if config_file.startswith('/') and len(config_file) > 2 and config_file[2] == '/':
+        drive = config_file[1:2]
+        rest = config_file[3:]
+        config_file = drive + ':\\\\' + rest.replace('/', '\\\\')
+
+with open(config_file, encoding='utf-8') as f:
     config = yaml.safe_load(f)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
