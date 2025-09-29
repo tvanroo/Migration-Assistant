@@ -2089,6 +2089,186 @@ run_setup_wizard() {
     fi
 }
 
+# Check if cluster peering already exists
+check_existing_cluster_peering() {
+    local step_name="check_cluster_peering"
+    
+    step_header "Checking for Existing Cluster Peering"
+    
+    info "Checking for existing cluster peering relationships in this capacity pool..."
+    
+    # Get source cluster name from config for comparison
+    local source_cluster_name=$(get_config_value 'source_cluster_name')
+    
+    if [[ -z "$source_cluster_name" ]]; then
+        warning "Source cluster name not configured - proceeding with cluster peering setup"
+        return 1
+    fi
+    
+    # Check for any volumes in the capacity pool that have replication relationships
+    # This indicates cluster peering already exists
+    local pool_volumes_result
+    pool_volumes_result=$(execute_api_call_silent "check_pool_volumes" "GET" \
+        "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes" \
+        "" \
+        "Check capacity pool for existing volumes with replication relationships")
+    
+    if [[ $? -eq 0 ]]; then
+        # Parse the response to check for existing replication relationships
+        local existing_peer_info
+        existing_peer_info=$($PYTHON_CMD -c "
+import json, sys, re
+
+try:
+    data = json.loads('''$pool_volumes_result''')
+    source_cluster = '$source_cluster_name'.strip()
+    found_peer = False
+    peer_details = []
+    
+    if 'value' in data:
+        volumes = data['value']
+        for volume in volumes:
+            if 'properties' in volume and 'dataProtection' in volume['properties']:
+                protection = volume['properties']['dataProtection']
+                if 'replication' in protection and protection['replication']:
+                    repl = protection['replication']
+                    remote_vol = repl.get('remoteVolumeResourceId', '')
+                    
+                    # Check if this replication is from/to our source cluster
+                    # The remote volume ID often contains cluster/SVM information
+                    if remote_vol and source_cluster.lower() in remote_vol.lower():
+                        found_peer = True
+                        volume_name = volume.get('name', 'Unknown')
+                        repl_schedule = repl.get('replicationSchedule', 'Unknown')
+                        mirror_state = repl.get('mirrorState', 'Unknown')
+                        
+                        peer_details.append(f'Volume: {volume_name}')
+                        peer_details.append(f'Remote Volume: {remote_vol}')
+                        peer_details.append(f'Schedule: {repl_schedule}')
+                        peer_details.append(f'Mirror State: {mirror_state}')
+                        break
+    
+    if found_peer:
+        print('FOUND_PEER')
+        for detail in peer_details:
+            print(detail)
+    else:
+        print('NO_PEER_FOUND')
+        
+except Exception as e:
+    print('ERROR_CHECKING')
+    print(f'Error: {str(e)}')
+")
+        
+        if [[ "$existing_peer_info" == *"FOUND_PEER"* ]]; then
+            success "Found existing cluster peering relationship to source cluster '$source_cluster_name'!"
+            
+            echo -e "${GREEN}Existing Peering Details:${NC}"
+            echo "$existing_peer_info" | grep -v "FOUND_PEER"
+            echo ""
+            
+            info "Since cluster peering already exists between this Azure NetApp capacity pool"
+            info "and your source cluster '$source_cluster_name', you can reuse this"
+            info "relationship for the new volume without recreating the cluster peer."
+            echo ""
+            
+            if ask_user_choice "Skip cluster peering setup and reuse existing relationship?" "y"; then
+                success "Skipping cluster peering setup - reusing existing cluster relationship"
+                return 0  # Skip cluster peering
+            else
+                warning "User chose to proceed with cluster peering setup anyway"
+                info "Note: This may succeed or fail depending on Azure NetApp Files behavior"
+                return 1  # Proceed with cluster peering
+            fi
+        else
+            info "No existing cluster peering found to source cluster '$source_cluster_name'"
+            info "Proceeding with cluster peering setup"
+            return 1  # Proceed with cluster peering
+        fi
+    else
+        warning "Could not check capacity pool volumes - proceeding with cluster peering setup"
+        return 1  # Proceed with cluster peering
+    fi
+}
+
+# Silent API call function for checks (doesn't prompt user)
+execute_api_call_silent() {
+    local step_name="$1"
+    local method="$2"
+    local endpoint="$3"
+    local data="$4"
+    local description="$5"
+    local expected_status="${6:-200,201,202,204}"
+    
+    # Ensure we have a valid token
+    if [[ ! -f "$TOKEN_FILE" ]]; then
+        get_token >/dev/null 2>&1
+    fi
+    
+    local token=$(cat "$TOKEN_FILE")
+    local api_url=$(get_config_value 'azure_api_base_url')
+    local api_version=$(get_config_value 'azure_api_version')
+    
+    # Build the full URL
+    local full_url="${api_url}${endpoint}?api-version=${api_version}"
+    
+    # Replace variables in URL (using the same logic as execute_api_call)
+    full_url=$(echo "$full_url" | $PYTHON_CMD -c "
+import sys, yaml, os
+
+# Use the exact path string from bash without normalization
+config_file = r'${CONFIG_FILE}'
+
+# If we're on Windows and the path starts with /, it's likely a Git Bash path
+# that needs conversion to Windows format for Python to use
+if sys.platform == 'win32' and config_file.startswith('/'):
+    # Handle /c/path... format from Git Bash
+    if config_file.startswith('/') and len(config_file) > 2 and config_file[2] == '/':
+        drive = config_file[1:2]
+        rest = config_file[3:]
+        config_file = drive + ':\\\\' + rest.replace('/', '\\\\')
+
+with open(config_file, encoding='utf-8') as f:
+    config = yaml.safe_load(f)
+    all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
+    
+url = sys.stdin.read().strip()
+for key, value in all_vars.items():
+    url = url.replace('{{' + key + '}}', str(value))
+print(url)
+")
+    
+    # Execute the API call silently
+    local response_file=$(mktemp)
+    local http_status
+    
+    if [[ -n "$data" ]]; then
+        http_status=$(curl -s -w "%{http_code}" -o "$response_file" \
+            -X "$method" \
+            -H "Authorization: Bearer $token" \
+            -H "Content-Type: application/json" \
+            --data "$data" \
+            "$full_url" 2>/dev/null)
+    else
+        http_status=$(curl -s -w "%{http_code}" -o "$response_file" \
+            -X "$method" \
+            -H "Authorization: Bearer $token" \
+            "$full_url" 2>/dev/null)
+    fi
+    
+    # Check if the status is expected
+    if [[ ",$expected_status," == *",$http_status,"* ]]; then
+        # Output the response and return success
+        cat "$response_file"
+        rm -f "$response_file"
+        return 0
+    else
+        # Clean up and return failure
+        rm -f "$response_file"
+        return 1
+    fi
+}
+
 # Peering setup workflow (Steps 1-4: Authentication, Volume Creation, Cluster Peering, SVM Peering)
 run_peering_setup() {
     check_dependencies
@@ -2169,17 +2349,26 @@ run_peering_setup() {
         "Create migration target volume ($protocol with $qos QoS)" \
         "200,201,202"
     
-    # Step 3: Issue cluster peer request (always prompt - ONTAP commands required)
-    if [[ "${ANF_INTERACTION_MODE:-full}" == "minimal" ]]; then
-        step_header "Critical Step: Cluster Peering Setup"
-        info "This step requires ONTAP command execution - prompting regardless of interaction mode"
-        echo ""
+    # Step 3: Check for existing cluster peering before creating new one
+    local skip_cluster_peering=false
+    if check_existing_cluster_peering; then
+        skip_cluster_peering=true
+        info "Skipping cluster peering setup - using existing relationship"
     fi
-    execute_api_call "peer_request" "POST" \
-        "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/peerExternalCluster" \
-        '{"PeerClusterName":"{{source_cluster_name}}","PeerAddresses":["{{source_peer_addresses}}"]}' \
-        "Initiate cluster peering with source ONTAP system (ONTAP commands required)" \
-        "200,201,202"
+    
+    # Step 3a: Issue cluster peer request (only if no existing peering found)
+    if [[ "$skip_cluster_peering" == "false" ]]; then
+        if [[ "${ANF_INTERACTION_MODE:-full}" == "minimal" ]]; then
+            step_header "Critical Step: Cluster Peering Setup"
+            info "This step requires ONTAP command execution - prompting regardless of interaction mode"
+            echo ""
+        fi
+        execute_api_call "peer_request" "POST" \
+            "/subscriptions/{{azure_subscription_id}}/resourceGroups/{{target_resource_group}}/providers/Microsoft.NetApp/netAppAccounts/{{target_netapp_account}}/capacityPools/{{target_capacity_pool}}/volumes/{{target_volume_name}}/peerExternalCluster" \
+            '{"PeerClusterName":"{{source_cluster_name}}","PeerAddresses":["{{source_peer_addresses}}"]}' \
+            "Initiate cluster peering with source ONTAP system (ONTAP commands required)" \
+            "200,201,202"
+    fi
     
     # Step 4: Authorize external replication (always prompt - SVM peering commands required)
     if [[ "${ANF_INTERACTION_MODE:-full}" == "minimal" ]]; then
