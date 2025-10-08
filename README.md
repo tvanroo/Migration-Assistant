@@ -609,7 +609,7 @@ svm_SNCMK svm_SNCMK_root
 
 ```
 
-✅ Note the **volume name** (e.g. `rps_test_S`) and its **SVM name** (e.g. `TEST_API_SVM`).
+✅ Note the **volume name** [Volume Column] (e.g. `rps_test_S`) and its **SVM name** [Vserver Column] (e.g. `TEST_API_SVM`).
 
 ---
 
@@ -633,6 +633,8 @@ cluster identity show
           Cluster Contact: 
 ```
 
+✅ Note the *Cluster Name** (e.g. `SNCMK`).
+
 ---
 
 #### 3.2 Get the Host (Node) Name
@@ -649,6 +651,8 @@ Node      Health Eligibility Uptime        Model       Owner    Location
 SNCMK-01  true   true             02:02:18 CDvM200
 
 ```
+
+✅ Note the **Host Name** [Node Column] (e.g. `SNCMK-01`).
 
 ---
 
@@ -685,6 +689,8 @@ TEST_API_SVM TEST_API_SVM_data_1    10.199.6.56
 TEST_API_SVM TEST_API_SVM_iscsi_1   10.199.6.55 
 2 entries were displayed.
 ```
+
+✅ Note each of the **Peering IP(s)** [Address Column] (e.g. `10.199.6.56, 10.199.6.55`).
 
 ---
 
