@@ -185,8 +185,8 @@ class ANFSetupWizard:
     def collect_peer_addresses(self, existing: Dict) -> str:
         """Collect multiple peer addresses from user"""
         print("\n📋 Source Cluster Peer Addresses")
-        print("💡 Enter the IP address(es) of your ONTAP cluster's intercluster LIFs")
-        print("   You can find these with: 'network interface show -role intercluster'")
+        print("💡 Enter the IP address(es) of your ONTAP cluster's LIFs")
+        print("   You can find these with: 'network interface show -vserver <SVM> -fields address'")
         print("   Enter one IP address at a time. Press ENTER with no input when done.\n")
         
         # Parse existing peer addresses
@@ -542,24 +542,20 @@ class ANFSetupWizard:
         
         # Source cluster details
         print("\n📋 Source ONTAP Cluster Information")
+        print("\n💡 Need help collecting this information from your ONTAP system?")
+        print("   See: https://github.com/tvanroo/Migration-Assistant#ontap-volume-identification-and-cluster-information-collection-guide")
+        print("   The guide provides step-by-step commands to gather all required details.")
         
         current_cluster = existing.get('variables', {}).get('source_cluster_name', '')
         self.config['variables']['source_cluster_name'] = self.get_input(
-            "Source Cluster Name, case-sensitive (Can be seen with 'cluster show' on ONTAP CLI)", 
+            "Source Cluster Name/Hostname, case-sensitive (Can be seen with 'cluster identity show' on ONTAP CLI)", 
             current_cluster, 
-            required=True
-        )
-        
-        current_hostname = existing.get('variables', {}).get('source_hostname', '')
-        self.config['variables']['source_hostname'] = self.get_input(
-            "Source External Host Name, case-sensitive (Can be seen with 'dns show' on ONTAP CLI)", 
-            current_hostname, 
             required=True
         )
         
         current_server = existing.get('variables', {}).get('source_svm_name', '')
         self.config['variables']['source_svm_name'] = self.get_input(
-            "Source SVM Name, case-sensitive (Can be seen with 'vserver show' on ONTAP CLI)", 
+            "Source SVM Name, case-sensitive (Can be seen with 'volume show -volume <volname> -fields vserver' on ONTAP CLI)", 
             current_server, 
             required=True
         )
@@ -575,14 +571,8 @@ class ANFSetupWizard:
         peer_addresses = self.collect_peer_addresses(existing)
         self.config['variables']['source_peer_addresses'] = peer_addresses
         
-        # Replication schedule
-        current_schedule = existing.get('variables', {}).get('replication_schedule', 'Hourly')
-        self.config['variables']['replication_schedule'] = self.get_input(
-            "Replication Schedule (Hourly/Daily/Weekly)", 
-            current_schedule, 
-            required=True, 
-            validate_func=self.validate_replication_schedule
-        )
+        # Replication schedule - set to default hourly
+        self.config['variables']['replication_schedule'] = 'Hourly'
     
     def configure_optional_settings(self, existing: Dict):
         """Configure optional settings"""

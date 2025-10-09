@@ -538,10 +538,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 This guide walks administrators through identifying a specific volume on an ONTAP cluster and gathering key information for troubleshooting, migration, or reporting.
 
 The process collects the following values:
-- **Cluster Name**
-- **Host (Node) Name**
+
+- **Cluster Name** (used as both cluster name and hostname)
+- **Host (Node) Name** (for reference only)
 - **SVM Name**
 - **LIF IP Addresses**
+
+**Note:** In most ONTAP environments, the cluster name serves as both the cluster identifier and hostname for management connections.
 
 ---
 
@@ -633,7 +636,7 @@ cluster identity show
           Cluster Contact: 
 ```
 
-✅ Note the *Cluster Name** (e.g. `SNCMK`).
+✅ Note the **Cluster Name** (e.g. `SNCMK`). This value will be used as both the cluster name and hostname in the migration configuration.
 
 ---
 
