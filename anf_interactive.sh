@@ -245,7 +245,6 @@ show_config() {
     echo ""
     echo "📋 Source Configuration:"
     echo "🖥️  Source Cluster: $(get_config_value 'source_cluster_name')"
-    echo "🌐 Source Hostname: $(get_config_value 'source_hostname')"
     echo "📁 Source SVM: $(get_config_value 'source_svm_name')"
     echo "💾 Source Volume: $(get_config_value 'source_volume_name')"
     
@@ -1752,7 +1751,7 @@ get_volume_payload() {
                 "endpointType": "Dst",
                 "replicationSchedule": "{{replication_schedule}}",
                 "remotePath": {
-                    "externalHostName": "{{source_hostname}}",
+                    "externalHostName": "{{source_cluster_name}}",
                     "serverName": "{{source_svm_name}}",
                     "volumeName": "{{source_volume_name}}"
                 }
@@ -1785,7 +1784,7 @@ get_volume_payload() {
                 "endpointType": "Dst",
                 "replicationSchedule": "{{replication_schedule}}",
                 "remotePath": {
-                    "externalHostName": "{{source_hostname}}",
+                    "externalHostName": "{{source_cluster_name}}",
                     "serverName": "{{source_svm_name}}",
                     "volumeName": "{{source_volume_name}}"
                 }
@@ -1820,7 +1819,7 @@ get_volume_payload() {
             "endpointType":"Dst",
             "replicationSchedule":"{{replication_schedule}}",
             "remotePath":{
-               "externalHostName":"{{source_hostname}}",
+               "externalHostName":"{{source_cluster_name}}",
                "serverName":"{{source_svm_name}}",
                "volumeName":"{{source_volume_name}}"
             }
@@ -1870,7 +1869,7 @@ get_volume_payload() {
             "endpointType":"Dst",
             "replicationSchedule":"{{replication_schedule}}",
             "remotePath":{
-               "externalHostName":"{{source_hostname}}",
+               "externalHostName":"{{source_cluster_name}}",
                "serverName":"{{source_svm_name}}",
                "volumeName":"{{source_volume_name}}"
             }
