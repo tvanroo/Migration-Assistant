@@ -10,6 +10,25 @@ A cross-platform command-line tool for managing Azure NetApp Files migration wor
 - **PyYAML** - Python package for YAML configuration parsing
 - **curl** - For API calls
 - **bash** - Shell environment (see platform-specific setup below)
+- **Azure Service Principal** - Required for Azure authentication (see setup below)
+
+### Azure Service Principal Setup
+
+Before running the migration, you need to create an Azure Service Principal with appropriate permissions:
+
+1. **Open Azure Cloud Shell** in your target subscription
+2. **Create the Service Principal**:
+
+   ```bash
+   az ad sp create-for-rbac --name ANFMigrate
+   ```
+
+3. **Save the Output**:
+   - **App ID** (appId) - Use for `{{app_id}}` in your configuration
+   - **Password** (password) - Use for `{{client_secret}}` in your configuration
+   - **Tenant ID** (tenant) - Use for `{{tenant_id}}` in your configuration
+
+> **Note**: The service principal will have Contributor role by default, which is sufficient for Azure NetApp Files operations.
 
 ## 🚀 Quick Setup
 
@@ -47,15 +66,17 @@ The prerequisite checker can automatically:
 
 4. **Run the migration script**:
 
-   ```powershell
-   # From PowerShell (recommended)
-   & "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
+   ```cmd
+   # From Windows Command Prompt (CMD) - recommended
+   "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
    ```
    
    ```bash
    # Or open Git Bash directly and run
    ./anf_interactive.sh
    ```
+   
+   > **Important**: Use **Command Prompt (CMD)** instead of PowerShell for bash script execution to avoid shell escaping issues.
 
 ### 🐧 **Linux/macOS Users**
 
@@ -106,8 +127,8 @@ Configure your migration parameters:
 # Run setup wizard (works on all platforms)
 python3 setup_wizard.py
 
-# Windows Git Bash alternative
-& "C:\Program Files\Git\bin\bash.exe" -c "python3 setup_wizard.py"
+# Windows Command Prompt alternative
+"C:\Program Files\Git\bin\bash.exe" -c "python3 setup_wizard.py"
 ```
 
 ### 3. Execute Migration
