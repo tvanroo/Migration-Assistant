@@ -19,7 +19,7 @@ Before running the migration, you need to create an Azure Service Principal with
 2. **Create the Service Principal**:
 
    ```bash
-   az ad sp create-for-rbac --name ANFMigrate --role Contributor
+   az ad sp create-for-rbac --name ANFMigrate
    ```
 
 3. **Save the Output**:
