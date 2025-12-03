@@ -100,7 +100,7 @@ step_header() {
     echo ""
 }
 
-# Read config value using Python
+# Read config value using Python with robust encoding handling
 get_config_value() {
     local key="$1"
     if [[ ! -f "$CONFIG_FILE" ]]; then
@@ -127,10 +127,27 @@ try:
             rest = config_file[3:]
             config_file = drive + ':\\\\' + rest.replace('/', '\\\\')
     
-    with open(config_file, encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-        all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
-        print(all_vars.get('$key', ''))
+    # Try multiple encodings for robust file reading
+    content = None
+    encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
+    for encoding in encodings:
+        try:
+            with open(config_file, encoding=encoding) as f:
+                content = f.read()
+                # Remove BOM if present
+                if content.startswith('\ufeff'):
+                    content = content[1:]
+                break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    
+    if content is None:
+        print('')
+        exit(1)
+        
+    config = yaml.safe_load(content)
+    all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
+    print(all_vars.get('$key', ''))
 except Exception as e:
     # For debugging, uncomment:
     # import sys
@@ -369,8 +386,25 @@ if sys.platform == 'win32' and config_file.startswith('/'):
         rest = config_file[3:]
         config_file = drive + ':\\\\' + rest.replace('/', '\\\\')
 
-with open(config_file, encoding='utf-8') as f:
-    config = yaml.safe_load(f)
+# Try multiple encodings for robust file reading
+content = None
+encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
+for encoding in encodings:
+    try:
+        with open(config_file, encoding=encoding) as f:
+            content = f.read()
+            # Remove BOM if present
+            if content.startswith('\\ufeff'):
+                content = content[1:]
+            break
+    except (UnicodeDecodeError, UnicodeError):
+        continue
+
+if content is None:
+    print(sys.stdin.read().strip())
+    exit(0)
+
+config = yaml.safe_load(content)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
 url = sys.stdin.read().strip()
@@ -396,8 +430,25 @@ if sys.platform == 'win32' and config_file.startswith('/'):
         rest = config_file[3:]
         config_file = drive + ':\\\\' + rest.replace('/', '\\\\')
 
-with open(config_file, encoding='utf-8') as f:
-    config = yaml.safe_load(f)
+# Try multiple encodings for robust file reading
+content = None
+encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
+for encoding in encodings:
+    try:
+        with open(config_file, encoding=encoding) as f:
+            content = f.read()
+            # Remove BOM if present
+            if content.startswith('\\ufeff'):
+                content = content[1:]
+            break
+    except (UnicodeDecodeError, UnicodeError):
+        continue
+
+if content is None:
+    print(sys.stdin.read())
+    exit(0)
+
+config = yaml.safe_load(content)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
 data = sys.stdin.read()
@@ -2227,8 +2278,25 @@ if sys.platform == 'win32' and config_file.startswith('/'):
         rest = config_file[3:]
         config_file = drive + ':\\\\' + rest.replace('/', '\\\\')
 
-with open(config_file, encoding='utf-8') as f:
-    config = yaml.safe_load(f)
+# Try multiple encodings for robust file reading
+content = None
+encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
+for encoding in encodings:
+    try:
+        with open(config_file, encoding=encoding) as f:
+            content = f.read()
+            # Remove BOM if present
+            if content.startswith('\\ufeff'):
+                content = content[1:]
+            break
+    except (UnicodeDecodeError, UnicodeError):
+        continue
+
+if content is None:
+    print(sys.stdin.read().strip())
+    exit(0)
+
+config = yaml.safe_load(content)
     all_vars = {**config.get('variables', {}), **config.get('secrets', {})}
     
 url = sys.stdin.read().strip()
