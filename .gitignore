@@ -182,7 +182,9 @@ cython_debug/
 
 # Project-specific ignores
 config.yaml
+config.json
 config_backups/*.yaml
+config_backups/*.json
 logs/
 "Source Material"/
 
