@@ -1,0 +1,40 @@
+{
+  "secrets": {
+    "azure_app_secret": "REPLACE-WITH-YOUR-SERVICE-PRINCIPAL-SECRET"
+  },
+  "variables": {
+    "azure_api_base_url": "https://management.azure.com",
+    "azure_api_version": "2025-06-01",
+    "azure_app_id": "00000000-0000-0000-0000-000000000000",
+    "azure_auth_base_url": "https://login.microsoftonline.com/",
+    "azure_subscription_id": "00000000-0000-0000-0000-000000000000",
+    "azure_tenant_id": "00000000-0000-0000-0000-000000000000",
+
+    "replication_schedule": "Hourly",
+
+    "source_cluster_name": "YOUR-ONTAP-CLUSTER-NAME",
+    "source_hostname": "your-ontap-cluster.example.com",
+    "source_peer_addresses": [
+      "10.0.0.10",
+      "10.0.0.11"
+    ],
+    "source_svm_name": "YOUR-SOURCE-SVM-NAME",
+    "source_volume_name": "YOUR-SOURCE-VOLUME-NAME",
+
+    "target_capacity_pool": "your-anf-capacity-pool-name",
+    "target_is_large_volume": false,
+    "target_location": "eastus",
+    "target_netapp_account": "your-anf-account-name",
+    "target_network_features": "Standard",
+    "target_protocol_types": "CIFS",
+    "target_resource_group": "your-resource-group-name",
+    "target_service_level": "Standard",
+    "target_subnet_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/your-rg/providers/Microsoft.Network/virtualNetworks/your-vnet/subnets/your-anf-subnet",
+    "target_throughput_mibps": "",
+    "target_usage_threshold": 107374182400,
+    "target_volume_name": "your-target-volume-name",
+    "target_zones": [
+      "1"
+    ]
+  }
+}
