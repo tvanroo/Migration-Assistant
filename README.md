@@ -1,16 +1,15 @@
 # Azure NetApp Files Migration Assistant
 
-A cross-platform command-line tool for managing Azure NetApp Files migration workflows with robust variable management and conditional logic. Built with bash scripts and Python for maximum compatibility across Windows, Linux, and macOS.
+A Windows-native PowerShell tool for managing Azure NetApp Files migration workflows with interactive configuration, automated peering setup, and comprehensive monitoring capabilities.
 
 ## 📋 Requirements
 
 ### System Requirements
 
-- **Python 3.6+** (recommended: Python 3.7+)
-- **PyYAML** - Python package for YAML configuration parsing
-- **curl** - For API calls
-- **bash** - Shell environment (see platform-specific setup below)
+- **Windows 10/11** with PowerShell 5.1 or PowerShell Core 7+
 - **Azure Service Principal** - Required for Azure authentication (see setup below)
+- **Internet Access** - For Azure API calls
+- **Network Connectivity** - Between on-premises ONTAP and Azure
 
 ### Azure Service Principal Setup
 
@@ -20,300 +19,96 @@ Before running the migration, you need to create an Azure Service Principal with
 2. **Create the Service Principal**:
 
    ```bash
-   az ad sp create-for-rbac --name ANFMigrate
+   az ad sp create-for-rbac --name ANFMigrate --role Contributor
    ```
 
 3. **Save the Output**:
-   - **App ID** (appId) - Use for `{{app_id}}` in your configuration
-   - **Password** (password) - Use for `{{client_secret}}` in your configuration
-   - **Tenant ID** (tenant) - Use for `{{tenant_id}}` in your configuration
+   - **App ID** (appId) - Use for `azure_app_id` in your configuration
+   - **Password** (password) - Use for `azure_app_secret` in your configuration
+   - **Tenant ID** (tenant) - Use for `azure_tenant_id` in your configuration
 
 > **Note**: The service principal will have Contributor role by default, which is sufficient for Azure NetApp Files operations.
 
-## 🚀 Quick Setup
+## 🚀 Quick Start
 
-### 🪟 **Windows Users**
-
-#### Option 1: Automated Setup (Recommended)
+### 1. Run the Interactive Script
 
 ```powershell
-# Download and run the automated prerequisite checker
-# This will detect and fix common issues automatically
-.\check-prerequisites.ps1
+# Start the migration assistant
+.\anf_interactive.ps1
+
+# Or use specific commands
+.\anf_interactive.ps1 setup      # Configure migration parameters
+.\anf_interactive.ps1 peering    # Execute peering and start sync
+.\anf_interactive.ps1 break      # Finalize migration
+.\anf_interactive.ps1 monitor    # Monitor replication status
 ```
 
-The prerequisite checker can automatically:
+### 2. Configuration
 
-- ✅ Install missing Python packages (PyYAML)
-- ✅ Fix Windows Store Python stub issues
-- ✅ Download missing Git for Windows
-- ✅ Download missing project files from GitHub
-- ✅ Provide clear guidance for manual installations
+The script uses `config.json` for all settings. On first run, you'll be guided through the setup wizard to create this file.
 
-#### Option 2: Manual Setup
+Alternatively, copy `config.template.json` to `config.json` and edit it manually.
 
-1. **Install Git for Windows** (includes Git Bash):
-   - Download from: <https://git-scm.com/download/win>
+## ✅ Features
 
-2. **Install Python** (if not already installed):
-   - Download from: <https://www.python.org/downloads/windows/>
+### Complete Migration Workflow
 
-3. **Install PyYAML**:
+- ✅ **Phase 1: Setup** - Interactive configuration wizard with validation
+- ✅ **Phase 2: Peering** - Automated volume creation, cluster peering, and data sync
+- ✅ **Phase 3: Break Replication** - Final data transfer and migration finalization
+- ✅ **Standalone Monitoring** - Real-time replication progress tracking
 
-   ```powershell
-   pip install PyYAML
-   ```
+### Key Capabilities
 
-4. **Run the migration script**:
+- **Windows-Native**: Pure PowerShell implementation, no external dependencies
+- **Interactive Menus**: Easy-to-use menu system for all operations
+- **Automated Workflows**: End-to-end automation with safety confirmations
+- **Comprehensive Logging**: Detailed logs of all API calls and operations
+- **Token Caching**: Automatic OAuth token management and refresh
+- **Error Handling**: Clear error messages with actionable guidance
 
-   ```cmd
-   # From Windows Command Prompt (CMD) - recommended
-   "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
-   ```
-   
-   ```bash
-   # Or open Git Bash directly and run
-   ./anf_interactive.sh
-   ```
-   
-   > **Important**: Use **Command Prompt (CMD)** instead of PowerShell for bash script execution to avoid shell escaping issues.
+## 📖 Usage Guide
 
-### 🐧 **Linux/macOS Users**
-
-bash and curl are typically pre-installed. Install Python dependencies:
-
-```bash
-# Install PyYAML
-pip install PyYAML
-
-# Or if you get permission errors
-pip install --user PyYAML
-
-# Conda users
-conda install pyyaml
-
-# Run commands directly (no PowerShell wrapper needed)
-./anf_interactive.sh
-./anf_interactive.sh monitor
-./anf_interactive.sh --config production.yaml peering
-```
-
-## 🔍 Verify Installation
-
-```bash
-# Check prerequisites
-python3 --version  # Should be 3.6+
-python3 -c "import yaml; print('✅ PyYAML available')"
-curl --version     # Should be available
-bash --version     # Should be available
-```
-
-**Windows users:** Run `.\check-prerequisites.ps1` to automatically verify all requirements.
-
-## 🚀 Getting Started
-
-### 1. Run Prerequisites Check (Windows)
+### Interactive Menu
 
 ```powershell
-# Automated prerequisite checking and fixing
-.\check-prerequisites.ps1
+.\anf_interactive.ps1
 ```
 
-### 2. Interactive Setup
+**Menu Options:**
+1. Show / Edit current configuration
+2. Get authentication token
+3. Peering workflow (Phase 2)
+4. Break replication & finalize (Phase 3)
+5. Monitor replication status
+6. Diagnose config (basic JSON sanity check)
+7. Help / usage
+0. Exit
 
-Configure your migration parameters:
-
-```bash
-# Run setup wizard (works on all platforms)
-python3 setup_wizard.py
-
-# Windows Command Prompt alternative
-"C:\Program Files\Git\bin\bash.exe" -c "python3 setup_wizard.py"
-```
-
-### 3. Execute Migration
+### Direct Commands
 
 ```powershell
-# Interactive migration with menu system
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
+# Configuration setup
+.\anf_interactive.ps1 setup
 
-# Specific phases
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh setup"     # Phase 1: Configuration
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"   # Phase 2: Peering setup  
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh break"     # Phase 3: Break replication
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh monitor"   # Monitor replication status anytime
+# View current configuration
+.\anf_interactive.ps1 config
 
-# Custom config file support
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config production.yaml peering"
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh -c test-config.yaml monitor"
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config=staging.yaml menu"
-```
+# Execute peering workflow (create volume, setup peering, start sync)
+.\anf_interactive.ps1 peering
 
-## ✅ Development Status
+# Monitor replication progress
+.\anf_interactive.ps1 monitor
 
-**Current Status:** The Migration Assistant is feature-complete and production-ready.
+# Finalize migration (break replication, make volume writable)
+.\anf_interactive.ps1 break
 
-- ✅ **Phase 1: Setup** - Complete with interactive wizard and validation
-- ✅ **Phase 2: Peering** - Complete with interaction modes and optional monitoring  
-- ✅ **Phase 3: Break Replication** - Complete with interaction modes
-- ✅ **Standalone Monitoring** - Real-time replication status monitoring
-- ✅ **Cross-Platform Support** - Windows, Linux, and macOS compatibility
-- ✅ **Interaction Modes** - Minimal and Full modes for different user experience levels
+# Test authentication
+.\anf_interactive.ps1 token
 
-> **All migration phases are now complete and tested.** The tool provides a comprehensive migration workflow from initial setup through final volume activation, with flexible monitoring and user interaction options.
-
-## 📂 Core Migration Scripts
-
-This Migration Assistant focuses on two main script types for maximum cross-platform compatibility:
-
-### 🐍 **Python Scripts (.py)**
-
-- **Universal compatibility** across Windows, Linux, and macOS
-- **Rich libraries** for YAML parsing, JSON handling, and API interactions
-- **Interactive wizards** with user-friendly prompts and validation
-
-### 🐚 **Bash Scripts (.sh)**
-
-- **Native Linux/macOS** shell environment support
-- **Windows compatibility** through Git Bash
-- **Robust workflow management** with conditional logic and error handling
-- **Direct system integration** for file operations and process management
-
-### Available Scripts
-
-#### Setup & Configuration
-
-- `setup_wizard.py` - Interactive configuration wizard
-
-### Migration Execution  
-
-- `anf_interactive.sh` - Interactive migration with menu system
-
-### Usage Examples
-
-#### Interactive Mode (Recommended)
-
-```powershell
-# Start with menu system
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh"
-
-# Available menu options:
-# 1. Run Setup Wizard
-# 2. Run Peering Setup 
-# 3. Break Replication & Finalize Migration
-# 4. Monitor Replication Status
-# 5. Show Current Configuration
-# 6. Get Authentication Token Only
-# 7. Help
-```
-
-#### Direct Phase Execution
-
-```powershell
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh setup"    # Configure parameters
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"  # Set up connectivity and start sync
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh break"    # Finalize migration
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh monitor"  # Monitor replication progress
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh config"   # Show current configuration
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh token"    # Get authentication token
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh help"     # Show help information
-```
-
-## 🔧 Configuration
-
-The tool uses `config.yaml` for all settings. You can:
-
-1. **Run Setup Wizard** (recommended): `python3 setup_wizard.py`
-2. **Manual Configuration**: Copy `config.template.yaml` to `config.yaml` and edit
-3. **View Current Config**: `& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh config"`
-
-### Configuration Sections
-
-- **Azure Basics**: Tenant ID, Subscription ID, Resource Group
-- **Service Principal**: App ID and Secret for authentication  
-- **NetApp Resources**: Account, Capacity Pool, Volume settings
-- **Migration Settings**: Source ONTAP details, protocols, sizing
-- **Optional Settings**: QoS, network features, large volume support
-
-## 📋 Workflow Phases
-
-### Phase 1: Setup
-
-- Configure migration parameters with interactive wizard
-- Generate config.yaml file with validation
-- Test Azure and ONTAP connectivity
-- **Features**: Step-by-step guidance, configuration validation, backup management
-
-### Phase 2: Peering Setup  
-
-- Authenticate with Azure
-- Create target volume with availability zones and QoS support
-- Establish cluster peering with ONTAP commands
-- Set up SVM peering and authorization
-- Begin data synchronization
-- **Features**: Interaction modes (Minimal/Full), optional real-time monitoring, consolidated prompting
-
-### Phase 3: Break Replication
-
-- Perform final data transfer
-- Break replication relationship  
-- Make target volume writable
-- Complete migration cleanup
-- **Features**: Interaction modes (Minimal/Full), safety confirmations, automated finalization
-
-### Standalone Monitoring
-
-```powershell
-# Start immediate continuous monitoring (no prompts)
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh monitor"
-```
-
-- **Immediate Start**: No interactive prompts - starts monitoring instantly
-- **Continuous Updates**: Real-time progress updates every 60 seconds  
-- **Auto-Discovery**: Automatically finds and monitors available replication volumes
-- **Ctrl+C to Stop**: Press Ctrl+C at any time to stop monitoring
-- **Real-Time Metrics**: Transfer progress, speed, and average rates
-- **Cross-Platform**: Works on Windows, Linux, and macOS
-
-## 🔍 Monitoring & Logging
-
-### Real-Time Monitoring
-
-- **Interactive Mode**: Step-by-step progress with user confirmations
-- **Interaction Modes**: Choose between Minimal (auto-continue) or Full (step-by-step) modes
-- **Optional Phase 2 Monitoring**: Real-time replication progress during setup
-- **Standalone Monitoring**: Immediate continuous monitoring with `& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh monitor"` (no prompts)
-
-### Monitoring Features
-
-- **Volume Discovery**: Automatically finds all replication volumes
-- **Source Volume Selection**: Choose which migration to monitor by source name
-- **Transfer Metrics**: Total transferred, progress, and average transfer rates
-- **Flexible Duration**: 15 minutes to 2+ hours, or custom duration
-- **Azure Metrics Integration**: Uses Azure Insights API with 5-minute delay awareness
-
-### Monitoring Levels
-
-```powershell
-# Full monitoring (recommended for new users)
-$env:ANF_MONITORING_MODE="full"
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"
-
-# Quick mode (minimal prompts for experienced users)  
-$env:ANF_MONITORING_MODE="quick"
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"
-
-# Custom monitoring (user choice each time)
-$env:ANF_MONITORING_MODE="custom"
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh peering"
-```
-
-### Interaction Modes (Phase 2 & 3)
-
-```powershell
-# Set interaction mode for automated workflows
-$env:ANF_INTERACTION_MODE="minimal"  # Auto-continue through most steps
-$env:ANF_INTERACTION_MODE="full"     # Step-by-step prompts (default)
+# Show help
+.\anf_interactive.ps1 help
 ```
 
 ### Custom Configuration Files
@@ -322,221 +117,203 @@ Use different configuration files for multiple environments:
 
 ```powershell
 # Production environment
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config production.yaml peering"
+.\anf_interactive.ps1 peering config-production.json
 
-# Test environment  
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh -c test-config.yaml monitor"
+# Test environment
+.\anf_interactive.ps1 monitor config-test.json
 
-# Development environment (equals syntax)
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config=dev-config.yaml setup"
-
-# View which config file is active
-& "C:\Program Files\Git\bin\bash.exe" -c "./anf_interactive.sh --config staging.yaml config"
+# Development environment
+.\anf_interactive.ps1 setup config-dev.json
 ```
 
-**Benefits:**
+## 🔧 Configuration
 
-- **Multi-Environment Support**: Separate configs for dev/test/production
-- **Easy Environment Switching**: No need to edit config files
-- **Configuration Isolation**: Keep sensitive production settings separate
-- **Default Fallback**: Uses `config.yaml` when no custom file specified
+The `config.json` file contains two main sections:
 
-### YAML Auto-Remediation
+### Secrets Section
+```json
+{
+  "secrets": {
+    "azure_app_secret": "your-service-principal-password"
+  }
+}
+```
 
-The migration assistant includes automatic YAML file fixing for common Windows editing issues:
+### Variables Section
+```json
+{
+  "variables": {
+    "azure_tenant_id": "your-tenant-id",
+    "azure_subscription_id": "your-subscription-id",
+    "azure_app_id": "your-app-id",
+    "target_resource_group": "your-rg-name",
+    "target_netapp_account": "your-anf-account",
+    "target_capacity_pool": "your-pool-name",
+    "target_volume_name": "new-volume-name",
+    "source_cluster_name": "ontap-cluster",
+    "source_svm_name": "svm-name",
+    "source_volume_name": "source-volume"
+  }
+}
+```
 
-**Automatic Fixes Applied:**
+See `config.template.json` for a complete configuration example.
 
-- **Encoding Issues**: Converts files to UTF-8 without BOM
-- **Line Endings**: Converts Windows CRLF to Unix LF format
-- **Tab Characters**: Replaces tabs with proper space indentation
-- **Colon Spacing**: Ensures proper `key: value` formatting
-- **BOM Removal**: Strips Byte Order Mark if present
+## 📋 Migration Workflow
 
-**When It Activates:**
+### Phase 1: Setup & Configuration
 
-- Automatically runs when YAML parsing fails
-- Creates backup file before making changes
-- Provides detailed feedback on fixes applied
-- Seamless user experience - no manual intervention needed
-
-**Manual Tools Available:**
+Configure migration parameters using the interactive setup wizard:
 
 ```powershell
-# diagnose specific YAML issues
-python yaml-diagnostic.py config.yaml
-
-# manually fix YAML file
-python yaml-autofix.py config.yaml
+.\anf_interactive.ps1 setup
 ```
 
+**What it does:**
+- Guides you through all configuration parameters
+- Validates inputs and provides helpful prompts
+- Creates `config.json` file
+- Tests Azure authentication
 
-### Logging
+### Phase 2: Peering Setup
 
-- **Detailed Logs**: All API calls and responses logged to `anf_migration_interactive.log`
-- **Azure Portal**: Monitor replication progress and volume status
-- **Timestamped Events**: Complete audit trail of all migration activities
+Establish connectivity and begin data synchronization:
 
-## 🛠️ Advanced Usage
-
-### Environment-Based Interaction Modes
-
-```bash
-# Minimal mode - Auto-continue through most steps (experienced users)
-export ANF_INTERACTION_MODE="minimal"
-./anf_interactive.sh peering
-./anf_interactive.sh break
-
-# Full mode - Step-by-step prompts (default, new users)
-export ANF_INTERACTION_MODE="full"
-./anf_interactive.sh peering
-./anf_interactive.sh break
+```powershell
+.\anf_interactive.ps1 peering
 ```
 
-### Custom Monitoring
+**What it does:**
+1. Authenticates with Azure
+2. Creates the target ANF volume
+3. Initiates cluster peering (provides ONTAP commands to run)
+4. Sets up SVM peering (provides ONTAP commands to run)
+5. Begins data synchronization
 
-```bash
-# Full monitoring (recommended)
-export ANF_MONITORING_MODE="full"
-./anf_interactive.sh peering
+**ONTAP Commands**: You'll be prompted to execute specific commands on your on-premises ONTAP system. The script provides the exact commands needed.
 
-# Quick mode (minimal prompts)  
-export ANF_MONITORING_MODE="quick"
-./anf_interactive.sh peering
+**Timeline**: Setup takes 15-30 minutes. Data synchronization continues in the background and may take hours or days depending on data size.
 
-# Custom mode (user choice each time)
-export ANF_MONITORING_MODE="custom"
-./anf_interactive.sh peering
+### Phase 3: Break Replication & Finalize
+
+Complete the migration when data sync is finished:
+
+```powershell
+.\anf_interactive.ps1 break
 ```
 
-### Standalone Replication Monitoring
+**What it does:**
+1. Waits for any in-progress transfer to complete
+2. Performs final data replication transfer
+3. Breaks the replication relationship
+4. Makes the Azure volume writable
+5. Cleans up replication configuration
 
-```bash
-# Monitor existing replications anytime
-./anf_interactive.sh monitor
+**⚠️ Warning**: Breaking replication stops data synchronization from on-premises. Ensure:
+- Data synchronization is complete (check Azure Portal metrics)
+- You're ready to switch users to the Azure volume
+- You have a rollback plan if needed
 
-# Available in interactive menu as option 4
-./anf_interactive.sh
-# Then select: 4. Monitor Replication Status
+### Standalone Monitoring
+
+Monitor replication progress at any time:
+
+```powershell
+.\anf_interactive.ps1 monitor
 ```
 
-### Configuration Management
+**Features:**
+- Real-time replication status
+- Transfer progress and rates
+- Mirror state monitoring
+- Continuous updates (Ctrl+C to stop)
 
-```bash
-# Show current configuration
-./anf_interactive.sh config
+## 🔍 Monitoring & Logging
 
-# Get authentication token
-./anf_interactive.sh token
+### Log Files
 
-# Run setup wizard again
-./anf_interactive.sh setup
+All operations are logged to `anf_migration_interactive.log` in the script directory:
+- API requests and responses
+- Authentication tokens (masked)
+- Configuration changes
+- Error details
+
+### Azure Portal Monitoring
+
+Monitor replication in the Azure Portal:
+1. Navigate to your Azure NetApp Files volume
+2. Check the **Metrics** section
+3. Key metrics:
+   - Volume Replication Total Transfer
+   - Volume Replication Last Transfer Size
+   - Volume Replication Lag Time
+
+## 🔒 Security
+
+- **Secrets Protection**: Service principal password stored in `config.json` (gitignored)
+- **Token Caching**: OAuth tokens cached in `.token` file (gitignored)
+- **Log Sanitization**: Sensitive data masked in logs
+- **Least Privilege**: Use dedicated service principal with minimum required permissions
+
+### Recommended Service Principal Permissions
+
+```
+Microsoft.NetApp/*
+Microsoft.Network/virtualNetworks/subnets/read
+Microsoft.Network/virtualNetworks/subnets/join/action
 ```
 
-### Workflow Combinations
+## 🆘 Troubleshooting
 
-```bash
-# Complete migration in sequence
-./anf_interactive.sh setup    # Configure everything
-./anf_interactive.sh peering  # Start replication
-./anf_interactive.sh monitor  # Check progress (optional)
-./anf_interactive.sh break    # Finalize migration
+### Common Issues
 
-# Quick experienced user workflow
-export ANF_INTERACTION_MODE="minimal"
-./anf_interactive.sh peering && ./anf_interactive.sh break
+**"Failed to get authentication token"**
+- Verify service principal credentials in config.json
+- Ensure service principal has Contributor role on target resources
+- Check azure_tenant_id is correct
+
+**"Config file not found"**
+- Run `.\anf_interactive.ps1 setup` to create configuration
+- Ensure config.json exists in script directory
+
+**"Volume create request failed"**
+- Verify all Azure resource names are correct
+- Ensure capacity pool has sufficient space
+- Check subnet is properly delegated to Microsoft.NetApp/volumes
+
+**"A new transfer cannot be started since a transfer is already in progress"**
+- The script automatically waits for ongoing transfers to complete
+- If timeout occurs, wait for current transfer to finish in Azure Portal
+
+### Getting Help
+
+```powershell
+# Show detailed help
+.\anf_interactive.ps1 help
+
+# Check configuration
+.\anf_interactive.ps1 config
+
+# Validate JSON syntax
+.\anf_interactive.ps1 diagnose
+
+# View logs
+Get-Content .\anf_migration_interactive.log -Tail 50
 ```
 
 ## 📁 File Structure
 
-```text
-├── setup_wizard.py          # Interactive configuration wizard
-├── anf_interactive.sh        # Main migration workflow (bash script)
-├── check-prerequisites.ps1  # Windows prerequisite checker with auto-fix
-├── config.template.yaml     # Configuration template
-├── config_backups/          # Backup storage (auto-created)
-├── validate_variables.py    # Configuration validation utilities
-└── README.md                # This file
 ```
-
-### Core Files
-
-- **`anf_interactive.sh`** - Cross-platform bash script for migration workflows
-- **`setup_wizard.py`** - Python configuration wizard for easy setup
-- **`check-prerequisites.ps1`** - Windows PowerShell script for automated prerequisite checking and fixing
-
-## 🔒 Security Notes
-
-- Service principal secrets are stored in `config.yaml` (ignored by Git)
-- Configuration backups are created automatically with timestamps
-- Never commit `config.yaml` or backup files to version control
-- Use least-privilege Azure permissions for the service principal
-
-## 🆘 Troubleshooting
-
-### Windows Users - Quick Fix
-
-For Windows users experiencing setup issues, run the automated prerequisite checker:
-
-```powershell
-.\check-prerequisites.ps1
+Migration-Assistant/
+├── anf_interactive.ps1       # Main PowerShell script
+├── config.template.json      # Configuration template
+├── config.json               # Your configuration (gitignored)
+├── .token                    # Cached auth token (gitignored)
+├── anf_migration_interactive.log  # Operation log
+├── README.md                 # This file
+├── PREREQUISITES.md          # Detailed prerequisites
+└── MIGRATION_GUIDE.md        # Migration best practices
 ```
-
-This will automatically detect and fix common issues like:
-
-- Missing or broken Python installations
-- Windows Store Python stub problems  
-- Missing PyYAML package
-- Missing Git for Windows
-- Missing project files
-
-### Common Issues (All Platforms)
-
-1. **"curl: command not found"**
-
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get install curl
-   
-   # RHEL/CentOS
-   sudo yum install curl
-   
-   # macOS
-   brew install curl
-   ```
-
-2. **"python3: command not found"**
-
-   ```bash
-   # Check if python is available instead
-   python --version
-   
-   # Or install Python 3
-   # Ubuntu/Debian: sudo apt-get install python3
-   # RHEL/CentOS: sudo yum install python3
-   # macOS: brew install python3
-   ```
-
-3. **"Permission denied" when running scripts**
-
-   ```bash
-   chmod +x *.sh
-   ```
-
-4. **"PyYAML not found"**
-
-   ```bash
-   pip3 install PyYAML
-   # or
-   pip install --user PyYAML
-   ```
-
-### Getting Help
-
-- Run `./anf_interactive.sh help` for command options
-- Check `config_backups/` for previous configurations
-- Review logs for detailed API error messages
-- Ensure service principal has NetApp Contributor permissions
 
 ## 🤝 Contributing
 
@@ -548,217 +325,74 @@ This will automatically detect and fix common issues like:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
 ---
 
-## ONTAP Volume Identification and Cluster Information Collection Guide
+## 📚 ONTAP Information Collection Guide
 
 ### Purpose
 
-This guide walks administrators through identifying a specific volume on an ONTAP cluster and gathering key information for troubleshooting, migration, or reporting.
+This guide helps you collect the necessary information from your on-premises ONTAP system for migration configuration.
 
-The process collects the following values:
+### Required Information
 
-- **Cluster Name** (used as both cluster name and hostname)
-- **Host (Node) Name** (for reference only)
-- **SVM Name**
-- **LIF IP Addresses**
+- **Cluster Name** - ONTAP cluster identifier
+- **SVM Name** - Storage Virtual Machine name
+- **Volume Name** - Source volume to migrate
+- **LIF IP Addresses** - Intercluster LIF IPs for peering
 
-**Note:** In most ONTAP environments, the cluster name serves as both the cluster identifier and hostname for management connections.
+### Step-by-Step Collection
 
----
-
-### 1. Log in to the Cluster
-
-Use SSH or console access to connect to your cluster management interface:
+#### 1. Log into ONTAP
 
 ```bash
 ssh admin@<cluster-mgmt-IP>
 ```
 
-You should see a prompt similar to:
-
-```text
-CLUSTERNAME::>
-```
-
-If you see a prompt with only a single `>`, type:
-
-```bash
-cluster shell
-```
-
-to enter the cluster-level shell.
-
----
-
-### 2. Find the Volume You're Looking For
-
-List all volumes in the cluster and locate the one you're interested in:
+#### 2. Find Your Volume
 
 ```bash
 volume show
 ```
 
-**Example output:**
+Note the **Volume Name** and **Vserver (SVM) Name**.
 
-```text
-Vserver   Volume       Aggregate    State      Type       Size  Available Used%
---------- ------------ ------------ ---------- ---- ---------- ---------- -----
-SNCMK     MDV_CRS_5076ddadefb611ef920a000d3a5e874b_A 
-                       aggr2        online     RW         10GB     9.50GB    0%
-SNCMK     MDV_CRS_5076ddadefb611ef920a000d3a5e874b_B 
-                       aggr1        online     RW         10GB     9.50GB    0%
-SNCMK-01  vol0         aggr0_SNCMK_01 
-                                    online     RW      217.1GB    189.7GB    8%
-TEST_API_SVM 
-          TEST_API_SVM_root 
-                       aggr2        online     RW          1GB    968.2MB    0%
-TEST_API_SVM 
-          rps_test_S   aggr2        online     RW       1.05GB    920.8MB   10%
-TEST_API_SVM1 
-          Lun1         aggr1        online     DP       1.06GB     1.00GB    0%
-TEST_API_SVM1 
-          SVMDRv1      aggr1        online     DP         20MB    18.12MB    4%
-TEST_API_SVM1 
-          Vol2         aggr1        online     DP        100GB    95.00GB    0%
-TEST_API_SVM1 
-          svm_BellCluster_root 
-                       aggr2        online     RW          1GB    969.0MB    0%
-svm_SNCMK MMFG         -            online     RW         10TB     1.74TB    0%
-svm_SNCMK SMB_CBS      aggr3        online     RW          6TB    885.0GB   84%
-svm_SNCMK svm_SNCMK_root 
-                       aggr1        online     RW          1GB    969.2MB    0%
-
-```
-
-✅ Note the **volume name** [Volume Column] (e.g. `rps_test_S`) and its **SVM name** [Vserver Column] (e.g. `TEST_API_SVM`).
-
----
-
-### 3. Collect the Cluster, Host, SVM, and LIF Information
-
-Once you know the SVM name, run the following commands to collect all relevant details.
-
-#### 3.1 Get the Cluster Name
+#### 3. Get Cluster Name
 
 ```bash
 cluster identity show
 ```
 
-**Example output:**
+Note the **Cluster Name**.
 
-```text
-          Cluster UUID: 40abb9ec-efb6-11ef-920a-000d3a5e874b
-          Cluster Name: SNCMK
-          Cluster Serial Number: 1-80-000011
-          Cluster Location: 
-          Cluster Contact: 
-```
-
-✅ Note the **Cluster Name** (e.g. `SNCMK`). This value will be used as both the cluster name and hostname in the migration configuration.
-
----
-
-#### 3.2 Get the Host (Node) Name
+#### 4. Get SVM Confirmation
 
 ```bash
-system node show
+volume show -volume <VOLUME_NAME> -fields vserver
 ```
 
-**Example output:**
+Confirm the **SVM Name**.
 
-```text
-Node      Health Eligibility Uptime        Model       Owner    Location  
---------- ------ ----------- ------------- ----------- -------- ---------------
-SNCMK-01  true   true             02:02:18 CDvM200
-
-```
-
-✅ Note the **Host Name** [Node Column] (e.g. `SNCMK-01`).
-
----
-
-#### 3.3 Confirm the SVM Name for Your Volume
-
-Use the volume name you identified earlier:
+#### 5. Get LIF IP Addresses
 
 ```bash
-volume show -volume rps_test_S -fields vserver
+network interface show -vserver <SVM_NAME> -fields address
 ```
 
-**Example output:**
+Note all **IP addresses** (these are your peer addresses).
 
-```text
-vserver      volume     
------------- ---------- 
-TEST_API_SVM rps_test_S 
-```
+### Example Output
+
+| Field | Example Value |
+|-------|---------------|
+| **Cluster Name** | ONTAP-CLUSTER-01 |
+| **SVM Name** | svm_production |
+| **Volume Name** | vol_data_01 |
+| **LIF IPs** | 10.100.1.10, 10.100.1.11 |
+
+Use these values when running the setup wizard.
 
 ---
 
-#### 3.4 Get the LIF IPs for the SVM
-
-```bash
-network interface show -vserver TEST_API_SVM -fields address
-```
-
-**Example output:**
-
-```text
-vserver      lif                    address     
------------- -------------------    ----------- 
-TEST_API_SVM TEST_API_SVM_data_1    10.199.6.56 
-TEST_API_SVM TEST_API_SVM_iscsi_1   10.199.6.55 
-2 entries were displayed.
-```
-
-✅ Note each of the **Peering IP(s)** [Address Column] (e.g. `10.199.6.56, 10.199.6.55`).
-
----
-
-### 4. Record Your Results
-
-After running the four commands, record the following values:
-
-| Field                | Example Value            |
-| -------------------- | ------------------------ |
-| **Cluster Name**     | SNCMK                    |
-| **Host (Node) Name** | SNCMK-01                 |
-| **SVM Name**         | TEST_API_SVM             |
-| **LIF IPs**          | 10.199.6.56, 10.199.6.55 |
-| **Volume Name**      | rps_test_S               |
-
-You can store this information in your tracking spreadsheet, ticket, or migration worksheet.
-
----
-
-### 5. Quick Reference
-
-| Purpose             | Command                                                      |
-| ------------------- | ------------------------------------------------------------ |
-| List all volumes    | `volume show`                                                |
-| Get cluster name    | `cluster identity show`                                      |
-| Get host name       | `system node show`                                           |
-| Get SVM for volume  | `volume show -volume <VOLUME NAME> -fields vserver`          |
-| Get LIF IPs for SVM | `network interface show -vserver <SVM NAME> -fields address` |
-
----
-
-### Example Collected Output
-
-```text
-CLUSTERNAME: SNCMK
-HOSTNAME: SNCMK-01
-SVM NAME: TEST_API_SVM
-LIF IPs: 10.199.6.56, 10.199.6.55
-```
-
----
-
-### Notes
-
-- These commands require **admin privilege level**.
-- Replace `fslogix_user01` and `TEST_API_SVM` with your actual volume and SVM names.
-- The guide is compatible with **ONTAP 9.7 and newer**.
+**For detailed prerequisites and network requirements, see [PREREQUISITES.md](PREREQUISITES.md).**
